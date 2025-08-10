@@ -1,0 +1,2419 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>עולם תלת מימדי עם Three.js</title>
+    <!-- טעינת ספריות Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/controls/FirstPersonControls.js"></script>
+    <!-- טעינת ספריית Audio -->
+    <script src="https://cdn.jsdelivr.net/npm/howler@2.2.3/dist/howler.min.js"></script>
+    
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            cursor: default;
+        }
+        
+        #scene-container {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+        }
+        
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 20px;
+            border-radius: 10px;
+            z-index: 100;
+        }
+        
+        #controls-info {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            color: white;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 14px;
+            z-index: 100;
+        }
+        
+        #next-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #2c3e50;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 200;
+            display: none;
+        }
+        
+        #back-button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 24px;
+            pointer-events: none;
+            z-index: 100;
+        }
+        .modal {
+  display: none;
+  position: fixed;
+  z-index: 1001;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.8);
+  overflow: hidden;
+}
+
+.modal-content {
+  position: relative;
+  background-color: #ffffff;
+  margin:  auto;
+  width: 80%;
+  height: 95%; /* שונה מ-80% ל-95% */
+  border-radius: 10px;
+  box-shadow: 0 0 20px rgba(128, 0, 255, 0.7);
+}
+
+.close-btn {
+  position: absolute;
+  top: 10px;
+  right: 15px;
+  color: #333;
+  font-size: 28px;
+  font-weight: bold;
+  background-color: white;
+  width: 30px;
+  height: 30px;
+  line-height: 30px;
+  text-align: center;
+  border-radius: 50%;
+  cursor: pointer;
+  z-index: 1002;
+  transition: all 0.3s;
+}
+
+.close-btn:hover {
+  color: #FF00FF;
+  transform: scale(1.1);
+}
+
+#computer-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  border-radius: 10px;
+}
+
+#interaction-hint {
+  display: none;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 10px 20px;
+  border-radius: 5px;
+  z-index: 50;
+  font-size: 16px;
+  text-align: center;
+  pointer-events: none;
+}
+    </style>
+</head>
+<body>
+    <!-- Modal for video -->
+<div id="video-modal" style="
+display: none;
+position: fixed;
+top: 0;
+left: 0;
+width: 100%;
+height: 100%;
+background-color: rgba(0, 0, 0, 0.7);
+z-index: 1000;
+font-family: 'Varela Round', Arial, sans-serif;
+">
+<div style="
+    position: relative;
+    background-color: #000;
+    margin: 5% auto;
+    width: 90%;
+    max-width: 800px;
+    border-radius: 25px;
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+    animation: modalPopIn 0.7s;
+    direction: rtl;
+    border: 8px solid #FF5722;
+">
+    <div style="
+        background: linear-gradient(to left, #FF5722, #FF8A65);
+        color: white;
+        padding: 20px;
+        border-radius: 17px 17px 0 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        position: relative;
+    ">
+        <div style="position: relative; display: inline-block;">
+            <h2 style="margin: 0; font-size: 32px; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); font-weight: bold;">ברוכים השבים להווה!</h2>
+        </div>
+        <span id="close-video-modal" style="position: absolute; left: 20px; top: 50%; transform: translateY(-50%); color: white; font-size: 36px; font-weight: bold; cursor: pointer;">✖️</span>
+    </div>
+    <div style="padding: 0; background-color: black; border-radius: 0 0 17px 17px;">
+        <video id="intro-video" width="100%" controls style="display: block; border-radius: 0 0 17px 17px;">
+            <source src="vid/6.mp4" type="video/mp4">
+            הדפדפן שלך לא תומך בתגית וידאו.
+        </video>
+    </div>
+</div>
+</div>
+
+<style>
+@keyframes modalPopIn {
+0% { transform: scale(0.5); opacity: 0; }
+50% { transform: scale(1.05); opacity: 0.8; }
+100% { transform: scale(1); opacity: 1; }
+}
+</style>
+<!-- Mission popup -->
+<div id="mission-popup" style="
+    opacity: 0;
+    position: fixed;
+    top: 5px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 999;
+    width: auto;
+    max-width: 90%;
+    animation: float 3s ease-in-out infinite;
+">
+    <div style="
+        background: linear-gradient(135deg, rgba(230, 250, 240, 0.9), rgba(210, 240, 255, 0.95));
+        border: 3px solid #FF5722;
+        border-radius: 15px;
+        padding: -10px;
+        box-shadow: 0 0 15px rgba(255, 87, 34, 0.6), 0 0 30px rgba(0, 0, 0, 0.3);
+    ">
+        <div style="
+            background: rgba(255, 255, 255, 0.85);
+            border-radius: 12px;
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            position: relative;
+            z-index: 1;
+        ">
+            <div style="
+                font-size: 28px;
+                margin-left: 15px;
+                color: #FF5722;
+                text-shadow: 0 0 10px rgba(255, 87, 34, 0.7);
+            ">🎮</div>
+<div style="text-align: right;">
+    <div style="
+        color: #FF5722;
+        font-size: 30px;
+        font-weight: bold;
+        text-shadow: 0 0 4px rgba(255, 255, 255, 0.9);
+        letter-spacing: 1px;
+        padding: 5px 0;
+    ">חפשו את המחשב גיימינג</div>
+</div>
+        </div>
+    </div>
+</div>
+
+<style>
+@keyframes float {
+    0% { transform: translate(-50%, 0px); }
+    50% { transform: translate(-50%, -10px); }
+    100% { transform: translate(-50%, 0px); }
+}
+</style>
+    <div id="scene-container"></div>
+    
+    <div id="loading">טוען את העולם...</div>
+    
+    <div id="controls-info">
+        <p>תנועה קדימה: הקשה על קליק שמאלי בעכבר</p>
+        <p>תנועה אחורה: הקשה על קליק ימני בעכבר</p>
+        <p>מבט: הזיזו את העכבר</p>
+    </div>
+    
+    <div id="crosshair">+</div>
+    
+    <div id="next-screen">
+        <h1>הגעת ליעד!</h1>
+        <p>זהו המסך הבא.</p>
+        <button id="back-button">חזרה לעולם</button>
+    </div>
+    <div id="computer-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn">&times;</span>
+            <iframe id="computer-iframe" src="" frameborder="0"></iframe>
+        </div>
+    </div>
+    <script>
+        
+        // יצירת סצנה, מצלמה ורנדרר
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+camera.position.set(1.12, 1.60, 7.13); // מיקום התחלתי עדכני
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap; // צללים רכים יותר
+        
+        // הגדרת צבע רקע שמיים כחול
+        renderer.setClearColor(0x6495ED);
+        document.getElementById('scene-container').appendChild(renderer.domElement);
+        
+        // משתנים גלובליים
+        let controls;
+        let worldModel;
+        let isLoaded = false;
+        let clock = new THREE.Clock();
+        let ground; // משתנה לשמירת הרצפה
+        let tunnelObject; // משתנה לשמירת המנהרה
+        let tunnelWalls = []; // מערך לשמירת קולידרים של קירות המנהרה
+        let yossiModel;
+let jordanModel;
+let omerModel;
+        // משתנים לאודיו
+        let walkSound;
+        let isWalking = false;
+        const PLAYER_HEIGHT = 1.6;
+        // נקודת המעבר המיוחדת למסך הבא
+        const specialPortalPoint = new THREE.Vector3(33.42, PLAYER_HEIGHT, -23.09); // עדכון גובה הפורטל
+        const portalRadius = 12; // רדיוס גדול יותר לאזור הפורטל
+        let portalParticles; // משתנה לשמירת מערכת החלקיקים של הפורטל
+        // משתנה גלובלי לשליטה במודל
+let isComputerModalCooldown = false;
+let computerCheckTimer = null;
+// משתנה גלובלי לבקרת המודאל החדש
+let isNewPcModalCooldown = false;
+let newPcCheckTimer = null;
+let newPcModel; // לשמירת הפניה למודל
+// פונקציה להוספת תמונת המשחק Oneline
+// משתנה גלובלי לשמירת הפנייה למישור התמונה
+let gameImagePlane;
+
+// פונקציה להוספת תמונת המשחק Oneline
+const addGameImage = () => {
+    // טעינת הטקסטורה של התמונה
+    const textureLoader = new THREE.TextureLoader();
+    textureLoader.load(
+        'img/oneline.jpg', // נתיב לתמונה הראשונית
+        (texture) => {
+            // יצירת מישור להצגת התמונה
+            const aspectRatio = texture.image.width / texture.image.height;
+            const width = 2; // רוחב התמונה במרחב התלת-ממדי
+            const height = width / aspectRatio;
+            
+            const geometry = new THREE.PlaneGeometry(width, height);
+            const material = new THREE.MeshBasicMaterial({ 
+                map: texture,
+                side: THREE.DoubleSide,
+                transparent: true
+            });
+            
+            gameImagePlane = new THREE.Mesh(geometry, material);
+            
+            // מיקום התמונה בהתאם לקואורדינטות שהוגדרו
+            gameImagePlane.position.set(25.23, 1.60, -0.05);
+            
+            // סיבוב התמונה כך שתהיה בכיוון הנכון ולא הפוכה
+            gameImagePlane.rotation.y = Math.PI / -2; // סיבוב ב-90 מעלות סביב ציר ה-Y
+           
+            
+            // הוספת התמונה לסצנה
+            scene.add(gameImagePlane);
+            
+            console.log('תמונת Oneline נוספה בהצלחה');
+        },
+        undefined, // פונקציית התקדמות (לא נדרשת)
+        (error) => {
+            console.error('שגיאה בטעינת תמונת Oneline:', error);
+        }
+    );
+};
+
+// פונקציה להחלפת התמונה ל-oneline2.jpg
+const updateGameImage = () => {
+    if (!gameImagePlane) return;
+    
+    const textureLoader = new THREE.TextureLoader();
+    textureLoader.load(
+        'img/oneline2.jpg', // נתיב לתמונה החדשה
+        (texture) => {
+            // עדכון הטקסטורה של המישור הקיים
+            gameImagePlane.material.map = texture;
+            gameImagePlane.material.needsUpdate = true;
+            
+            console.log('תמונת Oneline הוחלפה ל-oneline2.jpg בהצלחה');
+        },
+        undefined,
+        (error) => {
+            console.error('שגיאה בטעינת התמונה החדשה:', error);
+        }
+    );
+};
+// פונקציה לטעינת מודל ה-newPc
+// פונקציה לטעינת מודל ה-newPc
+const loadNewPcModel = () => {
+    const loader = new THREE.GLTFLoader();
+    
+    loader.load(
+        '3d/newPc.glb',
+        (gltf) => {
+            newPcModel = gltf.scene;
+            
+            // הגדרת צללים
+            newPcModel.traverse((node) => {
+                if (node.isMesh) {
+                    node.castShadow = true;
+                    node.receiveShadow = true;
+                    
+                    // הפחתת הבהירות של החומרים - במקום להכפיל ב-2.0 נשאיר רגיל
+                    if (node.material) {
+                        if (!Array.isArray(node.material)) {
+                            // נשאיר את הצבע המקורי במקום להכפיל
+                            // node.material.color.multiplyScalar(2.0);
+                            // נפחית את עוצמת האור הפנימי
+                            node.material.emissive = new THREE.Color(0x111111);
+                        } else {
+                            node.material.forEach(mat => {
+                                // נשאיר את הצבע המקורי במקום להכפיל
+                                // mat.color.multiplyScalar(2.0);
+                                // נפחית את עוצמת האור הפנימי
+                                mat.emissive = new THREE.Color(0x111111);
+                            });
+                        }
+                    }
+                }
+            });
+            
+            // מיקום המודל
+            newPcModel.position.set(24.17, 0, -0.10);
+            newPcModel.scale.set(3.2, 3.2, 3.2);
+            newPcModel.rotation.y = Math.PI / -2; 
+            // הוספת אור מיוחד למחשב החדש - הפחתת עוצמת האור מ-1.5 ל-0.8
+            const pcLight = new THREE.PointLight(0xFFFFFF, 0.8, 3);
+            pcLight.position.copy(newPcModel.position).add(new THREE.Vector3(0, 0.6, 0));
+            scene.add(pcLight);
+            
+            scene.add(newPcModel);
+            console.log('מודל newPc נטען בהצלחה');
+            
+            // תחילת בדיקת מרחק מהמודל החדש
+            startNewPcProximityCheck();
+        },
+        (xhr) => {
+            console.log('טעינת newPc: ' + (xhr.loaded / xhr.total * 100) + '% טעון');
+        },
+        (error) => {
+            console.error('שגיאה בטעינת newPc:', error);
+        }
+    );
+};
+
+// פונקציה להתחלת בדיקת המרחק מהמודל החדש
+const startNewPcProximityCheck = () => {
+    if (newPcCheckTimer) clearInterval(newPcCheckTimer);
+    newPcCheckTimer = setInterval(checkNewPcProximity, 200);
+};
+
+// פונקציה לבדיקת מרחק מהמודל החדש
+// עדכון בפונקציית בדיקת הקרבה למודל החדש
+const checkNewPcProximity = () => {
+    // בדיקה אם הטיימר במנוחה או שהמודל לא קיים
+    if (!newPcModel) return;
+
+    // לא נפתח שוב אם כבר נסגר לצמיתות
+    if (newPcModalHasBeenClosed) return;
+
+    const pcPosition = new THREE.Vector3(20.86, 1.60, -0.27);
+    const distance = camera.position.distanceTo(pcPosition);
+    const activationDistance = 2.0;
+
+    if (distance <= activationDistance && !isNewPcModalCooldown) {
+        openNewPcModal();
+        isNewPcModalCooldown = true;
+        setTimeout(() => {
+            isNewPcModalCooldown = false;
+        }, 5000);
+    }
+};
+
+
+
+
+// פונקציה להצגת חיווי אינטראקציה למודל החדש
+const showInteractionHintForNewPc = () => {
+    let hintEl = document.getElementById('interaction-hint-new-pc');
+    
+    if (!hintEl) {
+        hintEl = document.createElement('div');
+        hintEl.id = 'interaction-hint-new-pc';
+        hintEl.textContent = 'לחץ כדי להשתמש במחשב החדש';
+        hintEl.style.display = 'none';
+        hintEl.style.position = 'absolute';
+        hintEl.style.top = '50%';
+        hintEl.style.left = '50%';
+        hintEl.style.transform = 'translate(-50%, -50%)';
+        hintEl.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+        hintEl.style.color = 'white';
+        hintEl.style.padding = '10px 20px';
+        hintEl.style.borderRadius = '5px';
+        hintEl.style.zIndex = '50';
+        hintEl.style.fontSize = '16px';
+        hintEl.style.textAlign = 'center';
+        hintEl.style.pointerEvents = 'none';
+        document.body.appendChild(hintEl);
+    }
+    
+    hintEl.style.display = 'block';
+};
+
+// פונקציה להסתרת חיווי האינטראקציה למודל החדש
+const hideInteractionHintForNewPc = () => {
+    const hintEl = document.getElementById('interaction-hint-new-pc');
+    if (hintEl) {
+        hintEl.style.display = 'none';
+    }
+};
+
+// פונקציה לטיפול בלחיצה על המודל החדש
+// עדכון גם בפונקציית הטיפול בלחיצה
+// פונקציה לטיפול בלחיצה על המודל החדש
+
+// פונקציה להסתרת מודלים
+const hideModels = () => {
+    // הסתר את השולחן, המחשבים והדמויות
+    scene.traverse((object) => {
+        if (object.userData && (object.userData.isTable || 
+                               object.userData.isOldComputer || 
+                               object.userData.isNewComputer ||
+                               object.userData.isCharacter)) {  // הוספנו את הדמויות
+            object.visible = false;
+        }
+    });
+};
+
+// פונקציה להחזרת מודלים
+// פונקציה להחזרת מודלים - משאירים ריקה כדי למנוע קריאות מקומות אחרים
+const showModels = () => {
+    // פונקציה מבוטלת - לא להשתמש בה
+    console.warn("הפונקציה showModels() נקראה ישירות - אין להשתמש בה. המודלים יוצגו רק דרך showModelsAfterGameClosure()");
+};
+// פונקציה לפתיחת המודאל למודל החדש
+const openNewPcModal = () => {
+    // יצירת המודאל אם לא קיים
+    if (newPcModalHasBeenClosed) {
+        console.log("🚫 ניסו לפתוח את המודאל של newGame, אבל הוא כבר נסגר לצמיתות.");
+        return;
+    }
+    let modal = document.getElementById('new-pc-modal');
+    
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'new-pc-modal';
+        modal.className = 'modal';
+        
+        const modalContent = document.createElement('div');
+        modalContent.className = 'modal-content';
+        
+        const iframe = document.createElement('iframe');
+        iframe.id = 'new-game-iframe';
+        iframe.src = 'iframe/newGame.html';
+        iframe.style.width = '100%';
+        iframe.style.height = '100%';
+        iframe.style.border = 'none';
+        iframe.style.borderRadius = '10px';
+      
+        modalContent.appendChild(iframe);
+        modal.appendChild(modalContent);
+        
+        document.body.appendChild(modal);
+    }
+    
+    // הצג את המודאל
+    modal.style.display = 'block';
+    
+    // השבת את השליטה
+    if (controls) {
+        controls.enabled = false;
+    }
+    
+    // עצירת התנועה והצליל
+    if (controls) {
+        controls.moveForward = false;
+        controls.moveBackward = false;
+    }
+    movingForward = false;
+    movingBackward = false;
+    
+    // עצור את צליל ההליכה
+    if (isWalking && walkSound) {
+        walkSound.pause();
+        isWalking = false;
+    }
+    
+    // הסתר את החיווי והכוונת
+    hideInteractionHintForNewPc();
+    document.getElementById('crosshair').style.display = 'none';
+    
+    // הסתר את תצוגת המיקום אם קיימת
+    if (window.positionDisplay) {
+        window.positionDisplay.style.display = 'none';
+    }
+    
+    // הסתר את המודלים
+    hideModels();
+};
+
+// פונקציה לסגירת המודאל למודל החדש
+// דגל לסגירה סופית של המודאל (כבר למעלה בקוד שלך)
+let newPcModalHasBeenClosed = false;
+
+// פונקציה לסגירת המודאל של המחשב החדש - לצמיתות
+const closeNewPcModal = () => {
+    const modal = document.getElementById('new-pc-modal');
+
+    // אם המודאל קיים – הסר אותו מה-DOM
+    if (modal) {
+        modal.remove();
+        console.log("🛑 המודאל של newGame נסגר – לא ייפתח שוב!");
+    }
+
+    // קביעת הדגל כך שלא ייפתח שוב לעולם
+    newPcModalHasBeenClosed = true;
+
+    // הפסקת בדיקת קרבה
+    if (newPcCheckTimer) {
+        clearInterval(newPcCheckTimer);
+        newPcCheckTimer = null;
+    }
+
+    // הפעלת השליטה מחדש
+    if (controls) {
+        controls.enabled = true;
+    }
+
+    // וידוא שהתנועה מופסקת
+    if (controls) {
+        controls.moveForward = false;
+        controls.moveBackward = false;
+    }
+    movingForward = false;
+    movingBackward = false;
+
+    // החזרת הכוונת
+    document.getElementById('crosshair').style.display = 'block';
+
+    // החזרת תצוגת המיקום אם קיימת
+    if (window.positionDisplay) {
+        window.positionDisplay.style.display = 'block';
+    }
+};
+
+// פונקציה לבדיקת מרחק מהמחשב
+const checkComputerProximity = () => {
+    if (!areModelsVisible() || isComputerModalCooldown) return;
+
+    const computerPosition = new THREE.Vector3(1.86, 1.60, -0.97); // ← מיקום חדש
+    const distance = camera.position.distanceTo(computerPosition);
+    const activationDistance = 2.0;
+
+    if (distance <= activationDistance) {
+        if (!isComputerModalCooldown) {
+            openComputerModal(); // ← פתיחה אוטומטית
+            isComputerModalCooldown = true;
+            setTimeout(() => {
+                isComputerModalCooldown = false;
+            }, 5000); // קירור של 5 שניות
+        }
+    }
+};
+
+// פונקציה לטיפול בלחיצה על מחשב
+const handleComputerClick = () => {
+    // בדיקה אם אנחנו עדיין בטווח
+    if (!areModelsVisible()) return;
+    const computerPosition = new THREE.Vector3(8.76, 1.6, 2.69);
+    const distance = camera.position.distanceTo(computerPosition);
+    
+    if (distance <= 2.0 && !isComputerModalCooldown) {
+        // פתיחת המודל
+        openComputerModal();
+    }
+    
+    // הסרת האזנה אחרי לחיצה
+};
+
+// פונקציה להצגת חיווי אינטראקציה
+const showInteractionHint = () => {
+    let hintEl = document.getElementById('interaction-hint');
+    
+    if (!hintEl) {
+        hintEl = document.createElement('div');
+        hintEl.id = 'interaction-hint';
+        hintEl.textContent = 'לחץ כדי להשתמש במחשב';
+        document.body.appendChild(hintEl);
+    }
+    
+    hintEl.style.display = 'block';
+};
+
+// פונקציה להסתרת חיווי האינטראקציה
+const hideInteractionHint = () => {
+    const hintEl = document.getElementById('interaction-hint');
+    if (hintEl) {
+        hintEl.style.display = 'none';
+    }
+};
+
+// פונקציה לפתיחת המודל
+// פונקציה לפתיחת המודל
+const openComputerModal = () => {
+    window.location.href = 'computers.html';
+};
+
+// פונקציה לסגירת המודל עם השהייה
+// פונקציה לסגירת המודל עם השהייה
+// פונקציה לסגירת המודל עם השהייה
+const closeComputerModal = () => {
+    // הסתר את המודל
+    const modal = document.getElementById('computer-modal');
+    modal.style.display = 'none';
+    
+    // נקה את ה-iframe כדי לעצור את האודיו
+    document.getElementById('computer-iframe').src = '';
+    
+    // הפעלת מצב המתנה למשך 5 שניות
+    isComputerModalCooldown = true;
+    
+    // הפעל טיימר להסרת ההמתנה
+    setTimeout(() => {
+        isComputerModalCooldown = false;
+    }, 5000); // 5 שניות
+    
+    // הפעל את השליטה מחדש
+    if (controls) {
+        controls.enabled = true;
+    }
+    
+    // וידוא שהתנועה מופסקת
+    if (controls) {
+        controls.moveForward = false;
+        controls.moveBackward = false;
+    }
+    movingForward = false;
+    movingBackward = false;
+    
+    // החזר את הכוונת
+    document.getElementById('crosshair').style.display = 'block';
+    
+    // החזר את תצוגת המיקום אם קיימת
+    if (window.positionDisplay) {
+        window.positionDisplay.style.display = 'block';
+    }
+};
+// פונקציה לאתחול המודל והאירועים
+const setupComputerModal = () => {
+    // הגדרת אירועים למודל
+    const modal = document.getElementById('computer-modal');
+    const closeBtn = modal.querySelector('.close-btn');
+    
+    // סגירה בלחיצה על X
+    closeBtn.addEventListener('click', closeComputerModal);
+    
+    // סגירה בלחיצה מחוץ לתוכן
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            closeComputerModal();
+        }
+    });
+    
+    // סגירה בלחיצה על מקש Escape
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && modal.style.display === 'block') {
+            closeComputerModal();
+        }
+    });
+    
+    // הפעלת בדיקת מרחק מהמחשב (כל 200 מילישניות)
+    computerCheckTimer = setInterval(checkComputerProximity, 200);
+};
+        // יצירת פורטל עם חלקיקי עשן סגול
+        const createPortalEffect = () => {
+            // יצירת גיאומטריה לחלקיקים
+            const particleCount = 500;
+            const particleGeometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(particleCount * 3);
+            const colors = new Float32Array(particleCount * 3);
+            
+            // הגדרת עשן במעגל סביב נקודת הפורטל
+            for (let i = 0; i < particleCount; i++) {
+                // מיקום אקראי בתוך ספירה
+                const angle = Math.random() * Math.PI * 2;
+                const radius = Math.random() * portalRadius;
+                const height = Math.random() * 5; // גובה החלקיקים
+                
+                // הוספת רנדומיות קטנה למיקום
+                positions[i * 3] = specialPortalPoint.x + Math.cos(angle) * radius;
+                positions[i * 3 + 1] = specialPortalPoint.y + height;
+                positions[i * 3 + 2] = specialPortalPoint.z + Math.sin(angle) * radius;
+                
+                // צבע סגול עם וריאציות קלות
+                colors[i * 3] = 0.5 + Math.random() * 0.2; // אדום
+                colors[i * 3 + 1] = 0; // ירוק
+                colors[i * 3 + 2] = 0.8 + Math.random() * 0.2; // כחול
+            }
+            
+            particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            particleGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+            
+            // יצירת מטריאל לחלקיקים עם סוג ערבוב (Blending) מתאים לעשן
+            const particleMaterial = new THREE.PointsMaterial({
+                size: 0.4,
+                transparent: true,
+                opacity: 0.6,
+                vertexColors: true,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false,
+                sizeAttenuation: true
+            });
+            
+            // יצירת המערכת חלקיקים
+            portalParticles = new THREE.Points(particleGeometry, particleMaterial);
+            scene.add(portalParticles);
+            
+            // הוספת אור נקודתי סגול באזור הפורטל
+            const portalLight = new THREE.PointLight(0x9932CC, 1, 10);
+            portalLight.position.copy(specialPortalPoint);
+            portalLight.position.y += 1.5; // הרמת האור מעט
+            scene.add(portalLight);
+        };
+        
+        // אנימציה לפורטל
+        const animatePortal = () => {
+            if (portalParticles) {
+                const positions = portalParticles.geometry.attributes.position.array;
+                
+                for (let i = 0; i < positions.length; i += 3) {
+                    // תנועה אקראית קלה
+                    positions[i] += (Math.random() - 0.5) * 0.05;
+                    positions[i + 1] += Math.random() * 0.05; // תנועה קלה למעלה
+                    positions[i + 2] += (Math.random() - 0.5) * 0.05;
+                    
+                    // החזר חלקיקים שיצאו חזרה לאזור הפורטל
+                    const dx = positions[i] - specialPortalPoint.x;
+                    const dz = positions[i + 2] - specialPortalPoint.z;
+                    const distance = Math.sqrt(dx * dx + dz * dz);
+                    
+                    if (distance > portalRadius || positions[i + 1] > specialPortalPoint.y + 5) {
+                        // אם החלקיק יצא מהגבולות, החזר אותו למיקום חדש בתוך הפורטל
+                        const angle = Math.random() * Math.PI * 2;
+                        const radius = Math.random() * portalRadius * 0.7;
+                        
+                        positions[i] = specialPortalPoint.x + Math.cos(angle) * radius;
+                        positions[i + 1] = specialPortalPoint.y + Math.random() * 2.5;
+                        positions[i + 2] = specialPortalPoint.z + Math.sin(angle) * radius;
+                    }
+                }
+                
+                portalParticles.geometry.attributes.position.needsUpdate = true;
+            }
+        };
+        
+        // פונקציה לבדיקת מיקום חדש ומעבר למסך הבא
+        const checkCustomLocationPoints = (position) => {
+    // בדיקת מרחק מנקודת הפורטל המיוחדת
+    const distanceToPortal = position.distanceTo(specialPortalPoint);
+    
+    if (distanceToPortal < portalRadius / 2) { // כאשר השחקן באמת קרוב לפורטל
+        // עצירת התנועה והצליל לפני מעבר דף
+        if (controls) {
+            controls.moveForward = false;
+            controls.moveBackward = false;
+        }
+        movingForward = false;
+        movingBackward = false;
+        
+        if (isWalking && walkSound) {
+            walkSound.pause();
+            isWalking = false;
+        }
+        
+        // מעבר לדף back.html
+        window.location.href = 'back.html';
+        return true;
+    }
+    
+    return false;
+};
+        
+        // קבוע גובה השחקן מעל האדמה
+        
+        
+        // תאורה ואפקטים
+        const setupLighting = () => {
+            // אור סביבה
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+            
+            // אור השמש הראשי
+            const sunLight = new THREE.DirectionalLight(0xfffaf0, 1.0);
+            sunLight.position.set(10, 20, 15);
+            sunLight.castShadow = true;
+            
+            // הגדרות צל איכותיות יותר
+            sunLight.shadow.mapSize.width = 2048;
+            sunLight.shadow.mapSize.height = 2048;
+            sunLight.shadow.camera.near = 0.5;
+            sunLight.shadow.camera.far = 50;
+            sunLight.shadow.camera.left = -20;
+            sunLight.shadow.camera.right = 20;
+            sunLight.shadow.camera.top = 20;
+            sunLight.shadow.camera.bottom = -20;
+            sunLight.shadow.bias = -0.0003;
+            
+            scene.add(sunLight);
+            
+            // נקודת אור משנית לתאורת מילוי
+            const fillLight = new THREE.DirectionalLight(0xc2d1ff, 0.5);
+            fillLight.position.set(-10, 10, -10);
+            scene.add(fillLight);
+            
+            // אור נקודתי עדין במרכז הסצנה
+            const pointLight = new THREE.PointLight(0xffedbe, 0.5, 20);
+            pointLight.position.set(0, 12, 0);
+            scene.add(pointLight);
+            
+            // ערפל לתחושת עומק
+            scene.fog = new THREE.FogExp2(0x8eb5e0, 0.006); // הקטנת ערך הצפיפות לגובה הגדול יותר
+        };
+        
+        // יצירת טקסטורת רצפה בסגנון כביש
+// יצירת טקסטורת רצפה בסגנון כביש ללא סימונים
+// יצירת טקסטורת רצפה בסגנון רחוב ישן עם מרצפות מלבניות בגוון חום כהה
+const createOfficeFloorTexture = () => {
+    const textureSize = 1024;
+    const canvas = document.createElement('canvas');
+    canvas.width = textureSize;
+    canvas.height = textureSize;
+    const ctx = canvas.getContext('2d');
+    
+    // צבע רקע בגוון אפור כהה
+    ctx.fillStyle = '#555555';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // גודל האריחים - גדולים יותר לרצפת הייטק
+    const tileWidth = 256; 
+    const tileHeight = 256;
+    const groutWidth = 2; // חיבורים דקים בין האריחים
+    
+    // ציור האריחים האפורים הכהים
+    for (let x = 0; x < canvas.width; x += tileWidth) {
+        for (let y = 0; y < canvas.height; y += tileHeight) {
+            // וריאציה קלה בגוון האפור לתת מראה מציאותי
+            const variation = Math.random() * 10;
+            const grayValue = 100 + variation; // ערכים נמוכים יותר = אפור כהה יותר
+            
+            // ציור האריח עצמו
+            ctx.fillStyle = `rgb(${grayValue}, ${grayValue}, ${grayValue})`;
+            ctx.fillRect(x + groutWidth/2, y + groutWidth/2, 
+                tileWidth - groutWidth, tileHeight - groutWidth);
+            
+            // הוספת מרקם עדין לאריח
+            addTileTexture(ctx, x + groutWidth/2, y + groutWidth/2, 
+                tileWidth - groutWidth, tileHeight - groutWidth);
+        }
+    }
+    
+    // יצירת טקסטורה מהקנבס
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(2, 2); // פחות חזרות לאריחים גדולים יותר
+    
+    return texture;
+};
+
+// פונקציה להוספת מרקם עדין לאריח אפור כהה
+const addTileTexture = (ctx, x, y, width, height) => {
+    // הוספת מרקם עדין עם מעט ברק
+    for (let i = 0; i < width * height / 400; i++) {
+        const px = x + Math.random() * width;
+        const py = y + Math.random() * height;
+        const size = Math.random() * 1.5 + 0.5;
+        
+        // נקודות ברק אקראיות - בגוון אפור בהיר עם שקיפות
+        ctx.fillStyle = `rgba(150, 150, 150, ${Math.random() * 0.15})`;
+        ctx.beginPath();
+        ctx.arc(px, py, size, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    
+    // הוספת קווים דקים ועדינים בגוון אפור כהה יותר או בהיר יותר למראה אריחים איכותיים
+    const numLines = 8;
+    ctx.strokeStyle = 'rgba(80, 80, 80, 0.2)';
+    ctx.lineWidth = 0.5;
+    
+    for (let i = 0; i < numLines; i++) {
+        const startX = x + Math.random() * width;
+        const startY = y + Math.random() * height;
+        const endX = startX + (Math.random() * 40 - 20);
+        const endY = startY + (Math.random() * 40 - 20);
+        
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(endX, endY);
+        ctx.stroke();
+    }
+    
+    // הוספת מעט ברק בפינות אקראיות לדמות החזר אור
+    for (let i = 0; i < 4; i++) {
+        const cornerX = x + (i === 0 || i === 2 ? 0 : width);
+        const cornerY = y + (i < 2 ? 0 : height);
+        
+        const gradient = ctx.createRadialGradient(
+            cornerX, cornerY, 0,
+            cornerX, cornerY, 20 + Math.random() * 10
+        );
+        
+        gradient.addColorStop(0, 'rgba(140, 140, 140, 0.2)');
+        gradient.addColorStop(1, 'rgba(100, 100, 100, 0)');
+        
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(cornerX, cornerY, 20 + Math.random() * 10, 0, Math.PI * 2);
+        ctx.fill();
+    }
+};
+// פונקציה להוספת טקסטורה לכל אבן
+const addStoneTexture = (ctx, x, y, width, height) => {
+    // הוספת מרקם מחוספס לאבן
+    for (let i = 0; i < width * height / 40; i++) {
+        const px = x + Math.random() * width;
+        const py = y + Math.random() * height;
+        const size = Math.random() * 2 + 0.5;
+        
+        // צבע אקראי לכתם - גוון של חום כהה
+        ctx.fillStyle = `rgba(45, 30, 20, ${Math.random() * 0.3})`;
+        ctx.beginPath();
+        ctx.arc(px, py, size, 0, Math.PI * 2);
+        ctx.fill();
+    }
+};
+
+// פונקציה להוספת שחיקה, סדקים וכתמים על הרצפה
+const addWearAndTear = (ctx, width, height, tileWidth, tileHeight, groutWidth) => {
+    // הוספת סדקים אקראיים
+    for (let i = 0; i < 120; i++) {
+        const x = Math.random() * width;
+        const y = Math.random() * height;
+        const length = 8 + Math.random() * 30;
+        const angle = Math.random() * Math.PI * 2;
+        
+        ctx.strokeStyle = `rgba(30, 20, 15, ${Math.random() * 0.6 + 0.2})`;
+        ctx.lineWidth = Math.random() * 1.5 + 0.5;
+        
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        
+        // סדק מפותל
+        let currentX = x;
+        let currentY = y;
+        const segments = 2 + Math.floor(Math.random() * 3);
+        const segmentLength = length / segments;
+        
+        for (let j = 0; j < segments; j++) {
+            const segAngle = angle + (Math.random() * 0.5 - 0.25);
+            currentX += Math.cos(segAngle) * segmentLength;
+            currentY += Math.sin(segAngle) * segmentLength;
+            ctx.lineTo(currentX, currentY);
+        }
+        
+        ctx.stroke();
+    }
+    
+    // הוספת כתמים וכהויות
+    for (let i = 0; i < 300; i++) {
+        const x = Math.random() * width;
+        const y = Math.random() * height;
+        const size = 5 + Math.random() * 15;
+        
+        // צבעים שונים לכתמים
+        let color;
+        const type = Math.random();
+        
+        if (type < 0.6) {
+            // כתם כהה יותר (שחיקה)
+            color = `rgba(20, 15, 10, ${Math.random() * 0.3})`;
+        } else if (type < 0.9) {
+            // כתם חום כהה (לכלוך)
+            color = `rgba(40, 25, 15, ${Math.random() * 0.4})`;
+        } else {
+            // כתם חום-אדמדם (חלודה)
+            color = `rgba(60, 30, 20, ${Math.random() * 0.3})`;
+        }
+        
+        const gradient = ctx.createRadialGradient(x, y, 0, x, y, size);
+        gradient.addColorStop(0, color);
+        gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(x, y, size, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    
+    // ציור קווי חיבור בין המלבנים בצבע כהה יותר
+    // קווים אנכיים
+    for (let x = 0; x < width; x += tileWidth) {
+        ctx.strokeStyle = `rgba(15, 10, 5, 0.9)`; // חיבורים כהים יותר
+        ctx.lineWidth = groutWidth;
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, height);
+        ctx.stroke();
+    }
+    
+    // קווים אופקיים
+    for (let y = 0; y < height; y += tileHeight) {
+        ctx.strokeStyle = `rgba(15, 10, 5, 0.9)`;
+        ctx.lineWidth = groutWidth;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(width, y);
+        ctx.stroke();
+    }
+    
+    // הוספת אפקט רטיבות אקראי
+    for (let i = 0; i < 15; i++) {
+        const x = Math.random() * width;
+        const y = Math.random() * height;
+        const size = 30 + Math.random() * 80;
+        
+        const gradient = ctx.createRadialGradient(x, y, 0, x, y, size);
+        gradient.addColorStop(0, 'rgba(25, 15, 10, 0.3)');
+        gradient.addColorStop(0.7, 'rgba(25, 15, 10, 0.1)');
+        gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(x, y, size, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    
+    // הוספת מעט ברק לאבנים בנקודות מסוימות (כמו שיש לפעמים ברצפות ישנות)
+    for (let i = 0; i < 100; i++) {
+        const x = Math.random() * width;
+        const y = Math.random() * height;
+        const size = 1 + Math.random() * 3;
+        
+        ctx.fillStyle = `rgba(100, 80, 60, ${Math.random() * 0.2 + 0.1})`;
+        ctx.beginPath();
+        ctx.arc(x, y, size, 0, Math.PI * 2);
+        ctx.fill();
+    }
+};
+        
+        // יצירת קרקע שטוחה בסגנון כביש
+// יצירת קרקע שטוחה בסגנון כביש
+// יצירת קרקע שטוחה בצורת ריבוע אמיתי
+const createFlatRoadGround = () => {
+    // יצירת ריבוע אמיתי כרצפה
+    const boxWidth = 200;
+    const boxDepth = 200;
+    const boxHeight = 1; // גובה דק מאוד
+    
+    // שימוש ב-BoxGeometry שיוצרת ריבוע מושלם
+    const geometry = new THREE.BoxGeometry(boxWidth, boxHeight, boxDepth);
+    
+    // יצירת המטריאל עם טקסטורת רצפת משרד הייטק בגוון אפור כהה
+    const officeFloorTexture = createOfficeFloorTexture();
+    
+    // הגדרת מערך של מטריאלים לכל פאה של הקופסה
+    const materials = [
+        new THREE.MeshStandardMaterial({ color: 0x666666 }), // צד ימין - אפור כהה
+        new THREE.MeshStandardMaterial({ color: 0x666666 }), // צד שמאל - אפור כהה
+        new THREE.MeshStandardMaterial({ 
+            map: officeFloorTexture,
+            roughness: 0.2, // ערך נמוך = מבריק יותר
+            metalness: 0.05, // ערך נמוך מאוד לאפור (פחות מתכתי)
+            envMapIntensity: 1.0 // החזרי אור מתונים
+        }), // למעלה (הרצפה עצמה)
+        new THREE.MeshStandardMaterial({ color: 0x666666 }), // למטה - אפור כהה
+        new THREE.MeshStandardMaterial({ color: 0x666666 }), // חזית - אפור כהה
+        new THREE.MeshStandardMaterial({ color: 0x666666 })  // גב - אפור כהה
+    ];
+    
+    ground = new THREE.Mesh(geometry, materials);
+    
+    // מיקום הרצפה בגובה 0
+    ground.position.y = -3; // חצי מהגובה כדי שהחלק העליון יהיה בדיוק בגובה 0
+    ground.receiveShadow = true;
+    scene.add(ground);
+    
+    return ground;
+};
+        
+        // יצירת קולידרים לקירות המנהרה
+        const createTunnelColliders = (startPoint, endPoint, tunnelRadius) => {
+    // ניקוי מערך הקולידרים הקיים
+    tunnelWalls = [];
+    
+    // חישוב הכיוון והאורך של המנהרה
+    const direction = new THREE.Vector3().subVectors(endPoint, startPoint);
+    const tunnelLength = direction.length();
+    
+    // נרמול הכיוון
+    const normalizedDirection = direction.clone().normalize();
+    
+    // יצירת וקטור ניצב לכיוון המנהרה
+    const perpendicular = new THREE.Vector3();
+    if (Math.abs(normalizedDirection.y) < 0.99) {
+        perpendicular.set(0, 1, 0);
+    } else {
+        perpendicular.set(1, 0, 0);
+    }
+    perpendicular.cross(normalizedDirection).normalize();
+    
+    // מספר הקולידרים סביב היקף המנהרה
+    const numColliders = 8;
+    
+    // יצירת קולידרים סביב היקף המנהרה
+    for (let i = 0; i < numColliders; i++) {
+        const angle = (i / numColliders) * Math.PI * 2;
+        
+        // וקטור בכיוון הקולידר הנוכחי
+        const ringVector = perpendicular.clone().applyAxisAngle(normalizedDirection, angle);
+        
+        // נקודות לאורך הקולידר
+        const colliderPoints = [];
+        
+        // מספר הנקודות לאורך המנהרה
+        const numPoints = 4;
+        
+        // יצירת נקודות לאורך המנהרה
+        for (let j = 0; j <= numPoints; j++) {
+            const t = j / numPoints;
+            
+            // נקודה על קו המנהרה
+            const pointOnLine = new THREE.Vector3().lerpVectors(startPoint, endPoint, t);
+            
+            // נקודה על קיר המנהרה
+            const pointOnWall = pointOnLine.clone().add(
+                ringVector.clone().multiplyScalar(tunnelRadius * 0.9) // מעט פנימה מהרדיוס האמיתי
+            );
+            
+            colliderPoints.push(pointOnWall);
+        }
+        
+        // שמירת מידע הקולידר
+        tunnelWalls.push({
+    points: colliderPoints,
+    radius: 0.5 // הגדלה לקולידרים רחבים יותר למנהרה הגדולה
+});
+    }
+};
+        
+        // בדיקת התנגשות עם קירות המנהרה
+        const checkTunnelCollisions = (position) => {
+    // אם אין קירות מנהרה, החזר false תמיד
+    if (!tunnelWalls || tunnelWalls.length === 0) {
+        return false;
+    }
+    
+    // המשך הקוד הקיים אם יש קירות מנהרה
+    // רדיוס השחקן
+    const playerRadius = 0.5;
+    
+    for (const wall of tunnelWalls) {
+        // בדיקת כל מקטע של הקיר
+        for (let i = 0; i < wall.points.length - 1; i++) {
+            // קוד קיים...
+        }
+    }
+    
+    return false;
+};
+        
+        // יצירת צינור/מנהרה שהשחקן יוכל להיכנס אליו
+        const createTunnel = () => {
+    // נקודות התחלה וסיום המנהרה (נקודות חדשות)
+    const startPoint = new THREE.Vector3(-9.63, 13.0, 26.94); // התחלת המנהרה החדשה עם גובה 13
+    const endPoint = new THREE.Vector3(33.19, 13.0, -38.43); // סוף המנהרה החדש עם גובה 13
+    
+    // חישוב הכיוון והאורך של המנהרה
+    const direction = new THREE.Vector3().subVectors(endPoint, startPoint);
+    const tunnelLength = direction.length();
+    
+    // רדיוס הצינור - מוגדל ל-8 מטר
+    const tunnelRadius = 8; // רדיוס חדש
+    // מספר המקטעים לאורך ובהיקף הצינור
+    const radialSegments = 16;
+    const heightSegments = 30;
+    
+    
+    // יצירת גיאומטרית צילינדר פתוח בשני הקצוות
+    const geometry = new THREE.CylinderGeometry(
+        tunnelRadius, // רדיוס עליון
+        tunnelRadius, // רדיוס תחתון
+        tunnelLength, // אורך
+        radialSegments, // מספר מקטעים בהיקף
+        heightSegments, // מספר מקטעים לאורך
+        true // פתוח בשני הקצוות
+    );
+    
+    
+    // יצירת טקסטורה למנהרה בסגנון רטרו סגלגל
+    const createRetroTunnelTexture = () => {
+        const textureSize = 1024;
+        const canvas = document.createElement('canvas');
+        canvas.width = textureSize;
+        canvas.height = textureSize;
+        const ctx = canvas.getContext('2d');
+        
+        // צבע רקע סגול כהה
+        ctx.fillStyle = '#2a1a3a';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // יצירת קווי רשת ניאון בסגנון רטרו
+        const gridSpacing = 64; // מרווח גדול יותר בין קווי הרשת
+        const gridColor = '#9c3fd4'; // סגול ניאוני יותר
+        
+        ctx.strokeStyle = gridColor;
+        ctx.lineWidth = 3;
+        
+        // ציור קווים אופקיים
+        for (let y = 0; y < canvas.height; y += gridSpacing) {
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(canvas.width, y);
+            ctx.stroke();
+            
+            // הוספת אפקט זוהר לקווים
+            ctx.strokeStyle = 'rgba(200, 120, 255, 0.5)';
+            ctx.lineWidth = 6;
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(canvas.width, y);
+            ctx.stroke();
+            
+            // חזרה לסגנון המקורי
+            ctx.strokeStyle = gridColor;
+            ctx.lineWidth = 3;
+        }
+        
+        // ציור קווים אנכיים
+        for (let x = 0; x < canvas.width; x += gridSpacing) {
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, canvas.height);
+            ctx.stroke();
+            
+            // הוספת אפקט זוהר לקווים
+            ctx.strokeStyle = 'rgba(200, 120, 255, 0.5)';
+            ctx.lineWidth = 6;
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, canvas.height);
+            ctx.stroke();
+            
+            // חזרה לסגנון המקורי
+            ctx.strokeStyle = gridColor;
+            ctx.lineWidth = 3;
+        }
+        
+        // הוספת נקודות זוהרות בסגנון כוכבים
+        for (let i = 0; i < 300; i++) {
+            const x = Math.random() * canvas.width;
+            const y = Math.random() * canvas.height;
+            const size = Math.random() * 3 + 1;
+            
+            // צבע זוהר בגוונים של סגול/ורוד
+            const r = 200 + Math.random() * 55;
+            const g = 50 + Math.random() * 100;
+            const b = 200 + Math.random() * 55;
+            
+            // יצירת זוהר בגרדיאנט סביב הנקודה
+            const glow = ctx.createRadialGradient(x, y, 0, x, y, size * 3);
+            glow.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0.8)`);
+            glow.addColorStop(0.5, `rgba(${r}, ${g}, ${b}, 0.3)`);
+            glow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            
+            ctx.fillStyle = glow;
+            ctx.beginPath();
+            ctx.arc(x, y, size * 3, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // נקודה מרכזית בהירה יותר
+            ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+            ctx.beginPath();
+            ctx.arc(x, y, size, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+        // הוספת אלמנטים גיאומטריים רטרו (משולשים/מרובעים) בגדלים שונים
+        for (let i = 0; i < 50; i++) {
+            const x = Math.random() * canvas.width;
+            const y = Math.random() * canvas.height;
+            const size = Math.random() * 30 + 10;
+            
+            // צבע למלא בגווני סגול/ורוד
+            const r = 130 + Math.random() * 50;
+            const g = 20 + Math.random() * 40;
+            const b = 180 + Math.random() * 70;
+            const a = 0.2 + Math.random() * 0.3;
+            
+            ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${a})`;
+            
+            // בחירה אקראית בין משולש ומרובע
+            if (Math.random() > 0.5) {
+                // משולש
+                ctx.beginPath();
+                ctx.moveTo(x, y - size / 2);
+                ctx.lineTo(x - size / 2, y + size / 2);
+                ctx.lineTo(x + size / 2, y + size / 2);
+                ctx.closePath();
+                ctx.fill();
+                
+                // קו תוחם זוהר
+                ctx.strokeStyle = `rgba(255, 200, 255, 0.7)`;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            } else {
+                // מרובע מסובב (יהלום)
+                ctx.beginPath();
+                ctx.moveTo(x, y - size / 2);
+                ctx.lineTo(x + size / 2, y);
+                ctx.lineTo(x, y + size / 2);
+                ctx.lineTo(x - size / 2, y);
+                ctx.closePath();
+                ctx.fill();
+                
+                // קו תוחם זוהר
+                ctx.strokeStyle = `rgba(255, 200, 255, 0.7)`;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+        }
+        
+        // יצירת טקסטורה מהקנבס
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.wrapS = THREE.RepeatWrapping;
+        texture.wrapT = THREE.RepeatWrapping;
+        texture.repeat.set(4, 8); // חזרה שונה באופקי ואנכי
+        
+        return texture;
+    };
+    
+    // יצירת מרקם מנהרה רטרו
+    const tunnelTexture = createRetroTunnelTexture();
+    
+    // יצירת מטריאל לצינור
+    const material = new THREE.MeshStandardMaterial({
+        map: tunnelTexture,
+        roughness: 0.7,
+        metalness: 0.3,
+        side: THREE.DoubleSide, 
+        emissive: new THREE.Color(0x4d0099), // אפקט פליטה בגוון סגול
+        emissiveIntensity: 0.2, // עוצמת הפליטה
+        transparent: false
+    });
+    
+    // יצירת המנהרה
+    const tunnel = new THREE.Mesh(geometry, material);
+    
+    // חישוב והגדרת הסיבוב של המנהרה
+    // הצילינדר מיוצר לאורך ציר ה-Y, אז אנחנו צריכים לסובב אותו
+    // כדי שיהיה בכיוון הנכון
+    
+    // חישוב הנורמל של הכיוון
+    direction.normalize();
+    
+    // הגדרת וקטור ייחוס - בדרך כלל ציר ה-Y
+    const yAxis = new THREE.Vector3(0, 1, 0);
+    
+    // חישוב הקווטרניון להסתובבות מציר ה-Y לכיוון שלנו
+    const quaternion = new THREE.Quaternion().setFromUnitVectors(yAxis, direction);
+    tunnel.setRotationFromQuaternion(quaternion);
+    
+    // מיקום המנהרה - באמצע בין נקודת ההתחלה והסיום
+    const midPoint = new THREE.Vector3().addVectors(startPoint, endPoint).multiplyScalar(0.5);
+    tunnel.position.copy(midPoint);
+    
+    // הוספת צללים
+    tunnel.castShadow = true;
+    tunnel.receiveShadow = true;
+    
+    // הוספת המנהרה לסצנה
+    scene.add(tunnel);
+    
+    // שמירת המנהרה למשתנה הגלובלי
+    tunnelObject = tunnel;
+    
+    // יצירת קולידרים לקירות המנהרה
+    createTunnelColliders(startPoint, endPoint, tunnelRadius);
+    
+    // הוספת אורות בתוך המנהרה בסגנון רטרו
+    addRetroTunnelLights(tunnel, tunnelLength, startPoint, endPoint);
+    
+    return tunnel;
+};
+const addRetroTunnelLights = (tunnel, tunnelLength, startPoint, endPoint) => {
+    // מספר האורות לאורך המנהרה
+    const numLights = 20; // הגדלנו את מספר האורות לאורך המנהרה הארוכה יותר
+    // חישוב הוקטור בין נקודת ההתחלה לנקודת הסיום
+    const direction = new THREE.Vector3().subVectors(endPoint, startPoint);
+    // מרחק בין האורות
+    const spacing = tunnelLength / numLights;
+    
+    // צבעים ניאון מתחלפים לסגנון רטרו
+    const retroColors = [
+        0xff00ff, // מג'נטה
+        0x9932CC, // סגול כהה
+        0xff1493, // ורוד עמוק
+        0x8a2be2, // כחול-סגול
+        0x9400d3  // סגול כהה
+    ];
+    
+    // יצירת אורות לאורך המנהרה
+    for (let i = 0; i < numLights; i++) {
+        // מיקום האור כנקודה על הקו בין נקודת ההתחלה לנקודת הסיום
+        const ratio = (i * spacing) / tunnelLength;
+        const lightPosition = new THREE.Vector3()
+            .copy(startPoint)
+            .lerp(endPoint, ratio);
+        
+        // הזזת האור לצדדים ולמעלה לאפקט מעניין יותר
+        const offset = 6.5; // הגדלת המרחק מהמרכז להתאים למנהרה הרחבה יותר
+        const side = i % 2 === 0 ? 1 : -1; // צד ימין או שמאל לסירוגין
+        
+        // חישוב וקטור ניצב לכיוון המנהרה
+        const normalizedDirection = direction.clone().normalize();
+        const perpendicular = new THREE.Vector3();
+        
+        if (Math.abs(normalizedDirection.y) < 0.99) {
+            perpendicular.set(0, 1, 0);
+        } else {
+            perpendicular.set(1, 0, 0);
+        }
+        perpendicular.cross(normalizedDirection).normalize();
+        
+        // הזזת האור לצד המתאים של המנהרה ומעט למעלה
+        lightPosition.add(perpendicular.clone().multiplyScalar(side * offset * 0.7));
+        // הגבהת האורות מעט יותר
+        lightPosition.y += 3 + Math.sin(i) * 1.5; // וריאציה גדולה יותר בגובה
+        
+        // אור נקודתי בצבע ניאון
+        const colorIndex = i % retroColors.length;
+        const light = new THREE.PointLight(retroColors[colorIndex], 0.6, 8);
+        light.position.copy(lightPosition);
+        scene.add(light);
+        
+        // גופי תאורה ויזואליים - ספירות קטנות עם אפקט זוהר
+        const bulbGeometry = new THREE.SphereGeometry(0.15, 16, 16);
+        const bulbMaterial = new THREE.MeshBasicMaterial({ 
+            color: retroColors[colorIndex],
+            transparent: true,
+            opacity: 0.9
+        });
+        const bulb = new THREE.Mesh(bulbGeometry, bulbMaterial);
+        bulb.position.copy(light.position);
+        scene.add(bulb);
+        
+        // הוספת הילה מסביב לאור
+        const glowGeometry = new THREE.SphereGeometry(0.3, 16, 16);
+        const glowMaterial = new THREE.MeshBasicMaterial({ 
+            color: retroColors[colorIndex],
+            transparent: true,
+            opacity: 0.3,
+            side: THREE.BackSide
+        });
+        const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+        glow.position.copy(light.position);
+        scene.add(glow);
+        
+        // הוספת ריבועים/מעוינים ניאון בסגנון רטרו לאורך המנהרה
+        if (i % 3 === 0) { // מספר מועט של אלמנטים דקורטיביים
+            const size = 0.5 + Math.random() * 0.3;
+            
+            // יצירת צורה גיאומטרית
+            const shapeGeometry = new THREE.PlaneGeometry(size, size);
+            const shapeMaterial = new THREE.MeshBasicMaterial({ 
+                color: retroColors[(colorIndex + 2) % retroColors.length],
+                transparent: true,
+                opacity: 0.7,
+                side: THREE.DoubleSide
+            });
+            
+            const shape = new THREE.Mesh(shapeGeometry, shapeMaterial);
+            
+            // מיקום הצורה מעט הצידה מהאור
+            const shapePosition = lightPosition.clone();
+            shapePosition.add(perpendicular.clone().multiplyScalar(side * -1 * 0.8)); // צד הפוך מהאור
+            shape.position.copy(shapePosition);
+            
+            // סיבוב אקראי לצורה
+            shape.rotation.z = Math.PI / 4; // סיבוב ב-45 מעלות
+            shape.rotation.y = Math.random() * Math.PI;
+            
+            scene.add(shape);
+        }
+    }
+    
+    // הוספת אור סגול מתפשט באזור הכניסה למנהרה
+    const entranceLight = new THREE.PointLight(0x9400d3, 1, 10);
+    entranceLight.position.copy(startPoint);
+    entranceLight.position.y += 1;
+    scene.add(entranceLight);
+    
+    // הוספת אור סגול מתפשט באזור היציאה מהמנהרה
+    const exitLight = new THREE.PointLight(0xff00ff, 1, 10);
+    exitLight.position.copy(endPoint);
+    exitLight.position.y += 1;
+    scene.add(exitLight);
+};
+
+        // הוספת אורות לאורך המנהרה
+        const addTunnelLights = (tunnel, tunnelLength, startPoint, endPoint) => {
+            // מספר האורות לאורך המנהרה
+            const numLights = 10;
+            // חישוב הוקטור בין נקודת ההתחלה לנקודת הסיום
+            const direction = new THREE.Vector3().subVectors(endPoint, startPoint);
+            // מרחק בין האורות
+            const spacing = tunnelLength / numLights;
+            
+            // יצירת אורות לאורך המנהרה
+            for (let i = 0; i < numLights; i++) {
+                // מיקום האור כנקודה על הקו בין נקודת ההתחלה לנקודת הסיום
+                const ratio = (i * spacing) / tunnelLength;
+                const lightPosition = new THREE.Vector3()
+                    .copy(startPoint)
+                    .lerp(endPoint, ratio);
+                
+                // הזזת האור כלפי מעלה במעט כדי שיהיה מעל ראש השחקן
+                lightPosition.y += 0.5;
+                
+                // אור נקודתי
+                const light = new THREE.PointLight(0xffffcc, 0.3, 5);
+                light.position.copy(lightPosition);
+                scene.add(light);
+                
+                // גופי תאורה ויזואליים - ספירות קטנות
+                const bulbGeometry = new THREE.SphereGeometry(0.1, 8, 8);
+                const bulbMaterial = new THREE.MeshBasicMaterial({ 
+                    color: 0xffffee,
+                    transparent: true,
+                    opacity: 0.8
+                });
+                const bulb = new THREE.Mesh(bulbGeometry, bulbMaterial);
+                bulb.position.copy(light.position);
+                scene.add(bulb);
+            }
+        };
+        
+        // יצירת מערכת שליטה בגוף ראשון
+        const setupFirstPersonControls = () => {
+            controls = new THREE.FirstPersonControls(camera, renderer.domElement);
+            controls.movementSpeed = 4;
+            controls.lookSpeed = 0.03; // הורדת הרגישות מ-0.1 ל-0.05
+            controls.lookVertical = true;
+            controls.constrainVertical = true;
+            controls.verticalMin = Math.PI / 6; // הגבלת מבט למעלה
+            controls.verticalMax = Math.PI / 1.8; // הגבלת מבט למטה
+            
+            // הגדרת אזור מת בקצוות המסך שיעצור את התזוזה
+            const boundaryThreshold = 0.05; // 5% מהקצה (95% מהמסך פעיל)
+            
+            // האזנה לתזוזת העכבר
+            document.addEventListener('mousemove', (e) => {
+                const mouseX = e.clientX / window.innerWidth;
+                const mouseY = e.clientY / window.innerHeight;
+                
+                // בדיקה אם העכבר נמצא באזור המת (קרוב לקצוות)
+                const isNearLeftEdge = mouseX < boundaryThreshold;
+                const isNearRightEdge = mouseX > (1 - boundaryThreshold);
+                const isNearTopEdge = mouseY < boundaryThreshold;
+                const isNearBottomEdge = mouseY > (1 - boundaryThreshold);
+                
+                // עצירת התזוזה אם העכבר בקצוות
+                if (isNearLeftEdge || isNearRightEdge || isNearTopEdge || isNearBottomEdge) {
+                    if (controls.activeLook !== false) {
+                        controls.activeLook = false;
+                    }
+                } else {
+                    if (controls.activeLook !== true) {
+                        controls.activeLook = true;
+                    }
+                }
+            });
+        };
+        
+        // טעינת מודל GLB (רק tunnel.glb)
+        const loadTunnelModel = () => {
+    const loader = new THREE.GLTFLoader();
+    
+    // הצגת הודעת טעינה
+    document.getElementById('loading').style.display = 'block';
+    document.getElementById('loading').textContent = 'טוען את המודל...';
+    
+    loader.load(
+        '3d/lab.glb',
+        (gltf) => {
+            const model = gltf.scene;
+            
+            // הגדרת צללים לכל המשים במודל
+            model.traverse((node) => {
+                if (node.isMesh) {
+                    node.castShadow = true;
+                    node.receiveShadow = true;
+                    
+                    // היפוך הנורמלים אם זה לא מודל שהועלה על-ידי המשתמש
+
+                }
+            });
+            
+            // שמירה על הסקייל והמיקום המקוריים של המודל
+            model.scale.set(8, 4, 8);
+            model.position.set(0, 10, 0); // שמירה על הגובה המקורי
+            model.rotation.z = Math.PI * -0.07; 
+            // שמירת המודל למשתנה הגלובלי
+            worldModel = model;
+            
+            scene.add(model);
+            document.getElementById('loading').style.display = 'none';
+            isLoaded = true;
+        },
+        (xhr) => {
+            const percentComplete = (xhr.loaded / xhr.total) * 100;
+            document.getElementById('loading').textContent = 
+                `טוען את המודל... ${Math.round(percentComplete)}%`;
+        },
+        (error) => {
+            console.error('שגיאה בטעינת המודל:', error);
+            document.getElementById('loading').style.display = 'none';
+            isLoaded = true;
+        }
+    );
+};
+        // טעינת השולחן והמחשבים
+// טעינת השולחן והמחשבים - מעודכן
+const loadFurniture = () => {
+    const loader = new THREE.GLTFLoader();
+    
+    // טעינת השולחן
+    loader.load(
+        '3d/table.glb',
+        (gltf) => {
+            const table = gltf.scene;
+            table.visible = false;
+            // הגדרת צללים לשולחן
+            table.traverse((node) => {
+                if (node.isMesh) {
+                    node.castShadow = true;
+                    node.receiveShadow = true;
+                }
+            });
+            
+            // סימון השולחן לצורך הסתרה בעתיד
+            table.userData.isTable = true;
+            
+            // מיקום השולחן
+            table.position.set(-0.28, -1, -0.60);
+            table.scale.set(3, 3, 3);
+            table.rotation.y = Math.PI / 2;
+            scene.add(table);
+            
+            // אחרי שהשולחן נטען, נטען את המחשבים שצריכים להיות מעליו
+            loadComputers(table);
+        },
+        (xhr) => {
+            console.log('טעינת שולחן: ' + (xhr.loaded / xhr.total * 100) + '% טעון');
+        },
+        (error) => {
+            console.error('שגיאה בטעינת השולחן:', error);
+        }
+    );
+};
+
+// טעינת המחשבים - מעודכן
+const loadComputers = (table) => {
+    const loader = new THREE.GLTFLoader();
+    
+    // חישוב גובה השולחן לצורך הצבת המחשבים
+    const tableHeight = 0.75; 
+    
+    // טעינת המחשב הישן
+    loader.load(
+        '3d/oldComputer.glb',
+        (gltf) => {
+            const oldComputer = gltf.scene;
+            oldComputer.visible = false;
+            oldComputer.traverse((node) => {
+                if (node.isMesh) {
+                    node.castShadow = true;
+                    node.receiveShadow = true;
+                }
+            });
+            
+            // סימון המחשב הישן
+            oldComputer.userData.isOldComputer = true;
+            oldComputer.rotation.y = Math.PI / 2;
+            // מיקום המחשב הישן במרכז השולחן
+            oldComputer.position.set(0.27, tableHeight+0.6, -1.89);
+            oldComputer.scale.set(1.2, 1.2, 1.2);
+            
+            scene.add(oldComputer);
+        },
+        (xhr) => {
+            console.log('טעינת מחשב ישן: ' + (xhr.loaded / xhr.total * 100) + '% טעון');
+        },
+        (error) => {
+            console.error('שגיאה בטעינת המחשב הישן:', error);
+        }
+    );
+    
+    // טעינת המחשב החדש
+    loader.load(
+        '3d/newComputer.glb',
+        (gltf) => {
+            const newComputer = gltf.scene;
+            newComputer.visible = false;
+            newComputer.traverse((node) => {
+                if (node.isMesh) {
+                    node.castShadow = true;
+                    node.receiveShadow = true;
+                    
+                    // הבהרת החומרים
+                    if (node.material) {
+                        if (!Array.isArray(node.material)) {
+                            node.material.color.multiplyScalar(2.0);
+                            node.material.emissive = new THREE.Color(0x333333);
+                            if (node.material.roughness !== undefined) node.material.roughness = 0.3;
+                            if (node.material.metalness !== undefined) node.material.metalness = 0.7;
+                        } else {
+                            node.material.forEach(mat => {
+                                mat.color.multiplyScalar(2.0);
+                                mat.emissive = new THREE.Color(0x333333);
+                                if (mat.roughness !== undefined) mat.roughness = 0.3;
+                                if (mat.metalness !== undefined) mat.metalness = 0.7;
+                            });
+                        }
+                    }
+                }
+            });
+            
+            // סימון המחשב החדש
+            newComputer.userData.isNewComputer = true;
+            newComputer.rotation.y = Math.PI / 2;
+            // מיקום המחשב החדש לצד המחשב הישן
+            newComputer.position.set(0.15, tableHeight+0.6, 0.71);
+            newComputer.scale.set(1.2, 1.2, 1.2);
+            
+            // הוספת אור מיוחד למחשב החדש
+            const computerLight = new THREE.PointLight(0xFFFFFF, 1.5, 3);
+            computerLight.position.set(7.80, tableHeight+1.2, 0.06);
+            scene.add(computerLight);
+            
+            scene.add(newComputer);
+        },
+        (xhr) => {
+            console.log('טעינת מחשב חדש: ' + (xhr.loaded / xhr.total * 100) + '% טעון');
+        },
+        (error) => {
+            console.error('שגיאה בטעינת המחשב החדש:', error);
+        }
+    );
+};
+        // חזרה לעולם
+        document.getElementById('back-button').addEventListener('click', () => {
+            document.getElementById('next-screen').style.display = 'none';
+            controls.enabled = true; // הפעלת השליטה מחדש
+        });
+        
+        // התאמת גודל החלון
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            
+            if (controls) {
+                controls.handleResize();
+            }
+        });
+        
+        // הגדרת סאונד להליכה
+        const setupWalkSound = () => {
+    // יצירת אובייקט סאונד להליכה עם האופציה להפעלה חוזרת (loop)
+    walkSound = new Howl({
+        src: ['audio/walk.mp3'],
+        loop: true,
+        volume: 0.7
+    });
+            
+            // הוספת מאזין לאירוע לחיצה על כפתור העכבר
+            document.addEventListener('mousedown', (e) => {
+                // בדיקה אם לחץ כפתור שמאלי (0) או ימני (2)
+                if ((e.button === 0 || e.button === 2) && !isWalking) {
+                    walkSound.play();
+                    isWalking = true;
+                }
+            });
+            
+            // הוספת מאזין לאירוע שחרור כפתור העכבר
+            document.addEventListener('mouseup', (e) => {
+                // בדיקה אם שוחרר כפתור שמאלי (0) או ימני (2)
+                if ((e.button === 0 || e.button === 2) && isWalking) {
+                    walkSound.pause();
+                    isWalking = false;
+                }
+            });
+            
+            // מניעת תפריט קליק ימני
+            document.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+            });
+        };
+        const areModelsVisible = () => {
+    let visible = true;
+    
+    scene.traverse((object) => {
+        if (object.userData && (object.userData.isTable || 
+            object.userData.isOldComputer || 
+            object.userData.isNewComputer)) {
+            if (!object.visible) {
+                visible = false;
+            }
+        }
+    });
+    
+    return visible;
+};
+// פונקציה להצגת מודל הסרטון
+const setupVideoModal = () => {
+    const videoModal = document.getElementById('video-modal');
+    const introVideo = document.getElementById('intro-video');
+    const closeBtn = document.getElementById('close-video-modal');
+    
+    // הצגת המודל אחרי 3 שניות
+    setTimeout(() => {
+        videoModal.style.display = 'flex';
+        
+        // עצירת התנועה והצליל
+        if (controls) {
+            controls.moveForward = false;
+            controls.moveBackward = false;
+        }
+        movingForward = false;
+        movingBackward = false;
+        
+        if (isWalking && walkSound) {
+            walkSound.pause();
+            isWalking = false;
+        }
+        
+        // השבת שליטה בזמן הצגת הסרטון
+        if (controls) {
+            controls.enabled = false;
+        }
+        
+        // הפעלת הסרטון אוטומטית
+        introVideo.play();
+        
+        // הוספת מאזין לסיום הסרטון
+        introVideo.addEventListener('ended', () => {
+            closeVideoAndShowMission();
+        });
+        
+        // הוספת מאזין לכפתור הסגירה
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => {
+                closeVideoAndShowMission();
+            });
+        }
+    }, 3000); // 3 שניות
+};
+
+// פונקציה לסגירת הסרטון והצגת המשימה
+const closeVideoAndShowMission = () => {
+    const videoModal = document.getElementById('video-modal');
+    const introVideo = document.getElementById('intro-video');
+    const missionPopup = document.getElementById('mission-popup');
+    
+    // עצירת הסרטון
+    introVideo.pause();
+    
+    // סגירת המודל
+    videoModal.style.display = 'none';
+    
+    // החזרת השליטה למשתמש
+    if (controls) {
+        controls.enabled = true;
+    }
+    
+    // וידוא שהתנועה מופסקת
+    if (controls) {
+        controls.moveForward = false;
+        controls.moveBackward = false;
+    }
+    movingForward = false;
+    movingBackward = false;
+    
+    // הצגת המשימה אחרי שניה
+    setTimeout(() => {
+        if (missionPopup) {
+            missionPopup.style.opacity = '1';
+            missionPopup.style.transition = 'opacity 1.5s ease-out';
+        }
+    }, 1000);
+};
+
+// פונקציה לטעינת מודלי הדמויות
+const loadCharacterModels = () => {
+    const loader = new THREE.GLTFLoader();
+    
+    // טעינת מודל yossi
+    loader.load(
+        '3d/yossi.glb',
+        (gltf) => {
+            yossiModel = gltf.scene;
+            
+            // הגדרת צללים
+            yossiModel.traverse((node) => {
+                if (node.isMesh) {
+                    node.castShadow = true;
+                    node.receiveShadow = true;
+                }
+            });
+            
+            // סימון המודל כדמות
+            yossiModel.userData.isCharacter = true;
+            
+            // מיקום מודל yossi ליד השולחן
+            yossiModel.position.set(4.4, -0.5, -5.64);  // מימין לשולחן
+            yossiModel.scale.set(2, 2, 2);
+            yossiModel.rotation.y = Math.PI / 2; // פונה מעט פנימה
+            
+            // הסתרת המודל בהתחלה
+            yossiModel.visible = false;
+            
+            scene.add(yossiModel);
+            console.log('מודל yossi נטען בהצלחה');
+        },
+        (xhr) => {
+            console.log('טעינת yossi: ' + (xhr.loaded / xhr.total * 100) + '% טעון');
+        },
+        (error) => {
+            console.error('שגיאה בטעינת yossi:', error);
+        }
+    );
+    
+    // טעינת מודל jordan
+    loader.load(
+        '3d/jordan.glb',
+        (gltf) => {
+            jordanModel = gltf.scene;
+            
+            // הגדרת צללים
+            jordanModel.traverse((node) => {
+                if (node.isMesh) {
+                    node.castShadow = true;
+                    node.receiveShadow = true;
+                }
+            });
+            
+            // סימון המודל כדמות
+            jordanModel.userData.isCharacter = true;
+            
+            // מיקום מודל jordan בחלק האחורי של השולחן
+            jordanModel.position.set(3.6, -0.9, 3.8);  // מאחורי השולחן
+            jordanModel.scale.set(1.5, 1.5, 1.5);
+            jordanModel.rotation.y = Math.PI * 0.5;  // פונה מעט החוצה
+            
+            // הסתרת המודל בהתחלה
+            jordanModel.visible = false;
+            
+            scene.add(jordanModel);
+            console.log('מודל jordan נטען בהצלחה');
+        },
+        (xhr) => {
+            console.log('טעינת jordan: ' + (xhr.loaded / xhr.total * 100) + '% טעון');
+        },
+        (error) => {
+            console.error('שגיאה בטעינת jordan:', error);
+        }
+    );
+    
+    // טעינת מודל omer
+    loader.load(
+        '3d/omer.glb',
+        (gltf) => {
+            omerModel = gltf.scene;
+            
+            // הגדרת צללים
+            omerModel.traverse((node) => {
+                if (node.isMesh) {
+                    node.castShadow = true;
+                    node.receiveShadow = true;
+                }
+            });
+            
+            // סימון המודל כדמות
+            omerModel.userData.isCharacter = true;
+            
+            // מיקום מודל omer בצד השמאלי של השולחן
+            omerModel.position.set(4.3, -0.9, 6.62);  // משמאל לשולחן
+            omerModel.scale.set(1.5, 1.5, 1.5);
+            omerModel.rotation.y = Math.PI * 0.5;  // פונה מעט פנימה
+            
+            // הסתרת המודל בהתחלה
+            omerModel.visible = false;
+            
+            scene.add(omerModel);
+            console.log('מודל omer נטען בהצלחה');
+        },
+        (xhr) => {
+            console.log('טעינת omer: ' + (xhr.loaded / xhr.total * 100) + '% טעון');
+        },
+        (error) => {
+            console.error('שגיאה בטעינת omer:', error);
+        }
+    );
+};
+// הוסף משתנה גלובלי לעקוב אחרי מצב התנועה
+let movingForward = false;
+let movingBackward = false;
+
+// שכתב את ההאזנה לאירועי העכבר
+const setupMovementControls = () => {
+    // הוספת מאזין לאירוע לחיצה על כפתור העכבר
+    document.addEventListener('mousedown', (e) => {
+        // בדיקה אם לחץ כפתור שמאלי (0)
+        if (e.button === 0) {
+            movingForward = true;
+            if (controls) controls.moveForward = true;
+            
+            if (!isWalking && walkSound) {
+                walkSound.play();
+                isWalking = true;
+            }
+        }
+        // בדיקה אם לחץ כפתור ימני (2)
+        else if (e.button === 2) {
+            movingBackward = true;
+            if (controls) controls.moveBackward = true;
+            
+            if (!isWalking && walkSound) {
+                walkSound.play();
+                isWalking = true;
+            }
+        }
+    });
+    
+    // הוספת מאזין לאירוע שחרור כפתור העכבר
+    document.addEventListener('mouseup', (e) => {
+        // בדיקה אם שוחרר כפתור שמאלי (0)
+        if (e.button === 0) {
+            movingForward = false;
+            if (controls) controls.moveForward = false;
+            
+            // עוצר צליל רק אם גם קדימה וגם אחורה לא פעילים
+            if (isWalking && !movingBackward && walkSound) {
+                walkSound.pause();
+                isWalking = false;
+            }
+        }
+        // בדיקה אם שוחרר כפתור ימני (2)
+        else if (e.button === 2) {
+            movingBackward = false;
+            if (controls) controls.moveBackward = false;
+            
+            // עוצר צליל רק אם גם קדימה וגם אחורה לא פעילים
+            if (isWalking && !movingForward && walkSound) {
+                walkSound.pause();
+                isWalking = false;
+            }
+        }
+    });
+    
+    // עצירת תנועה אוטומטית כשעוזבים את העמוד או עוברים ללשונית אחרת
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            // אם העמוד הוסתר, עצור את כל התנועה
+            if (controls) {
+                controls.moveForward = false;
+                controls.moveBackward = false;
+            }
+            movingForward = false;
+            movingBackward = false;
+            
+            if (isWalking && walkSound) {
+                walkSound.pause();
+                isWalking = false;
+            }
+        }
+    });
+    
+    // עצירת תנועה כשעוזבים את העמוד
+    window.addEventListener('beforeunload', () => {
+        if (controls) {
+            controls.moveForward = false;
+            controls.moveBackward = false;
+        }
+        movingForward = false;
+        movingBackward = false;
+        
+        if (isWalking && walkSound) {
+            walkSound.pause();
+            isWalking = false;
+        }
+    });
+    
+    // מניעת תפריט קליק ימני
+    document.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+    });
+};
+const init = () => {
+    // הגדרת תאורה
+    setupLighting();
+    
+    // יצירת קרקע שטוחה
+    createFlatRoadGround();
+    
+    // הגדרת שליטה בגוף ראשון
+    setupFirstPersonControls();
+    
+    // הגדרת סאונד להליכה
+    setupWalkSound();
+    
+    // הוספת בקרות תנועה משופרות
+    setupMovementControls();
+    
+    // התקנת מודאל המחשב
+    setupComputerModal();
+    
+    // יצירת אפקט פורטל עם עשן סגול
+    createPortalEffect();
+    
+    // מיקום השחקן בנקודת ההתחלה
+    camera.position.set(1.12, PLAYER_HEIGHT, 7.13);
+    addGameImage();
+    
+    // הצגת מודל הסרטון
+    setupVideoModal();
+    
+    // טעינת מודלים
+    loadTunnelModel();
+    loadFurniture();
+    loadNewPcModel(); // טעינת המודל החדש
+    loadCharacterModels(); // טעינת מודלי הדמויות
+    // וידוא שהמודלים אינם גלויים בהתחלה
+    ensureModelsHidden();
+    
+    // טיימר לטעינה
+    setTimeout(() => {
+        if (document.getElementById('loading').style.display !== 'none') {
+            document.getElementById('loading').style.display = 'none';
+            isLoaded = true;
+        }
+    }, 5000);
+    
+    // התחלת לולאת האנימציה
+    animate();
+};
+
+// פונקציה חדשה שמוודאת שהמודלים מוסתרים
+function ensureModelsHidden() {
+    // מסתירה את המודלים גם אם נטענו עם visible=true
+    setTimeout(() => {
+        scene.traverse((object) => {
+            if (object.userData && (object.userData.isTable || 
+                object.userData.isOldComputer || 
+                object.userData.isNewComputer ||
+                object.userData.isCharacter)) {  // הוספנו את הדמויות
+                object.visible = false;
+            }
+        });
+    }, 1000); // קצת זמן אחרי טעינה להבטיח שהמודלים אכן נטענו
+}
+        // פונקציית אנימציה
+        const animate = () => {
+            requestAnimationFrame(animate);
+            
+            if (isLoaded) {
+                const delta = clock.getDelta();
+                
+                if (controls) {
+                    // שמירת המיקום הקודם לפני העדכון
+                    const previousPosition = camera.position.clone();
+                    
+                    // עדכון השליטה
+                    controls.update(delta);
+                    
+                    // בדיקת התנגשות עם קירות המנהרה
+                    if (checkTunnelCollisions(camera.position)) {
+                        // אם יש התנגשות, חזרה למיקום הקודם
+                        camera.position.copy(previousPosition);
+                    }
+                    
+                    // שמירת גובה קבוע מעל הרצפה (רצפה שטוחה)
+                    camera.position.y = PLAYER_HEIGHT;
+                    
+                    // הדפסת המיקום הנוכחי של השחקן לקונסול ולמסך בכל פריים
+                    const positionInfo = `מיקום שחקן: X: ${camera.position.x.toFixed(2)}, Y: ${camera.position.y.toFixed(2)}, Z: ${camera.position.z.toFixed(2)}`;
+                    console.log(positionInfo);
+                    
+                    // הצגת המיקום על המסך
+                    if (!window.positionDisplay) {
+                        window.positionDisplay = document.createElement('div');
+                        window.positionDisplay.style.position = 'absolute';
+                        window.positionDisplay.style.bottom = '10px';
+                        window.positionDisplay.style.left = '10px';
+                        window.positionDisplay.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+                        window.positionDisplay.style.color = 'white';
+                        window.positionDisplay.style.padding = '5px';
+                        window.positionDisplay.style.fontFamily = 'monospace';
+                        window.positionDisplay.style.fontSize = '14px';
+                        window.positionDisplay.style.borderRadius = '3px';
+                        window.positionDisplay.style.zIndex = '1000';
+                        document.body.appendChild(window.positionDisplay);
+                    }
+                    window.positionDisplay.textContent = positionInfo;
+                    
+                    // בדיקת אם הגענו לנקודת הפורטל
+                    checkCustomLocationPoints(camera.position);
+                }
+                
+                // אנימציה לפורטל עם עשן סגול
+                animatePortal();
+            }
+            
+            renderer.render(scene, camera);
+        };
+        // ניקוי בעת עזיבת הדף
+window.addEventListener('beforeunload', () => {
+    if (computerCheckTimer) {
+        clearInterval(computerCheckTimer);
+    }
+});
+        // הפעלת האתחול כשהדף נטען
+        window.addEventListener('load', init);
+// האזנה להודעות מה-iframe
+// האזנה להודעות מה-iframe
+// האזנה להודעות מה-iframe
+// האזנה להודעות מה-iframe
+window.addEventListener('message', function(event) {
+    if (newPcModalHasBeenClosed) return;
+
+    console.log('📨 התקבלה הודעה מה-iframe:', event.data);
+
+    if (event.data && typeof event.data === 'object') {
+        // ✅ סגירת iframe מהכפתור בפנים
+        if (event.data.action === 'closeIframe' && event.data.game === 'oneline') {
+            console.log('📩 סגירת המודאל מה-iframe');
+
+            // ✅ סגירה מלאה עם ביטול פתיחה חוזרת
+            closeNewPcModal();
+
+            // ✅ שינוי הטקסט במשימה
+// ✅ שינוי הטקסט במשימה עם שמירה על אותו גודל
+const missionPopup = document.getElementById('mission-popup');
+            if (missionPopup) {
+                const messageElement = missionPopup.querySelector('div > div > div');
+                if (messageElement) {
+                    messageElement.textContent = "הסתובבו והתקרבו לשולחן המחשבים";
+                    
+                    // וידוא שהגודל והעיצוב נשמרים למרות הטקסט הארוך יותר
+                    messageElement.style.fontSize = "28px"; 
+                    messageElement.style.fontWeight = "bold";
+                    messageElement.style.color = "#FF5722";
+                    messageElement.style.textShadow = "0 0 4px rgba(255, 255, 255, 0.9)";
+                    messageElement.style.letterSpacing = "1px";
+                    messageElement.style.padding = "5px 0";
+                }
+            }
+
+            // ✅ החזרת מודלים
+            showModelsAfterGameClosure();
+        }
+
+        // 🕒 הודעה על סיום המשחק — לא מחזירה את המודלים לפי הלוגיקה שלך
+        if (event.data.action === 'gameOver' && event.data.game === 'oneline') {
+            console.log('🕒 המשחק Oneline נגמר בזמן, אך לא מציגים את המודלים מחדש');
+            // אם בעתיד תחליט כן להחזיר מודלים כאן:
+            // showModelsAfterGameClosure();
+        }
+    }
+});
+
+// פונקציה חדשה להצגת המודלים רק אחרי לחיצה על כפתור הסגירה
+// פונקציה חדשה להצגת המודלים רק אחרי לחיצה על כפתור הסגירה
+function showModelsAfterGameClosure() {
+    // עובר על כל האובייקטים בסצנה ומציג רק את המודלים הרלוונטיים
+    scene.traverse((object) => {
+        if (object.userData && object.userData.isTable) {
+            object.visible = true;
+        }
+        if (object.userData && object.userData.isOldComputer) {
+            object.visible = true;
+        }
+        if (object.userData && object.userData.isNewComputer) {
+            object.visible = true;
+        }
+        if (object.userData && object.userData.isCharacter) {
+            object.visible = true;  // הצגת הדמויות
+        }
+    });
+    
+    // החלפת התמונה ל-oneline2.jpg
+    updateGameImage();
+}
+
+    </script>
+</body>
+</html>

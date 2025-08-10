@@ -1,0 +1,2907 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>עולם תלת מימדי עם Three.js</title>
+    <!-- טעינת ספריות Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/controls/FirstPersonControls.js"></script>
+    <!-- טעינת ספריית Audio -->
+    <script src="https://cdn.jsdelivr.net/npm/howler@2.2.3/dist/howler.min.js"></script>
+    
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            cursor: default;
+        }
+        
+        #scene-container {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+        }
+        
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 20px;
+            border-radius: 10px;
+            z-index: 100;
+        }
+        
+        #controls-info {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            color: white;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 14px;
+            z-index: 100;
+        }
+        
+        #next-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #2c3e50;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 200;
+            display: none;
+        }
+        
+        #back-button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 24px;
+            pointer-events: none;
+            z-index: 100;
+        }
+    </style>
+</head>
+<body>
+    <!-- Modal for video -->
+<div id="video-modal" style="
+display: none;
+position: fixed;
+top: 0;
+left: 0;
+width: 100%;
+height: 100%;
+background-color: rgba(0, 0, 0, 0.7);
+z-index: 1000;
+font-family: 'Varela Round', Arial, sans-serif;
+">
+<div style="
+    position: relative;
+    background-color: #000;
+    margin: 5% auto;
+    width: 90%;
+    max-width: 800px;
+    border-radius: 25px;
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+    animation: modalPopIn 0.7s;
+    direction: rtl;
+    border: 8px solid #FF5722;
+">
+    <div style="
+        background: linear-gradient(to left, #FF5722, #FF8A65);
+        color: white;
+        padding: 20px;
+        border-radius: 17px 17px 0 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        position: relative;
+    ">
+        <div style="position: relative; display: inline-block;">
+            <h2 style="margin: 0; font-size: 32px; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); font-weight: bold;">ברוכים הבאים למשחקייה!</h2>
+        </div>
+        <span id="close-video-modal" style="position: absolute; left: 20px; top: 50%; transform: translateY(-50%); color: white; font-size: 36px; font-weight: bold; cursor: pointer;">✖️</span>
+    </div>
+    <div style="padding: 0; background-color: black; border-radius: 0 0 17px 17px;">
+        <video id="intro-video" width="100%" controls style="display: block; border-radius: 0 0 17px 17px;">
+            <source src="vid/4.mp4" type="video/mp4">
+            הדפדפן שלך לא תומך בתגית וידאו.
+        </video>
+    </div>
+</div>
+</div>
+
+<style>
+@keyframes modalPopIn {
+0% { transform: scale(0.5); opacity: 0; }
+50% { transform: scale(1.05); opacity: 0.8; }
+100% { transform: scale(1); opacity: 1; }
+}
+</style>
+<!-- Mission popup -->
+<div id="mission-popup" style="
+    opacity: 0;
+    position: fixed;
+    top: 5px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 999;
+    width: auto;
+    max-width: 90%;
+    animation: float 3s ease-in-out infinite;
+">
+    <div style="
+        background: linear-gradient(135deg, rgba(230, 250, 240, 0.9), rgba(210, 240, 255, 0.95));
+        border: 3px solid #FF5722;
+        border-radius: 15px;
+        padding: -10px;
+        box-shadow: 0 0 15px rgba(255, 87, 34, 0.6), 0 0 30px rgba(0, 0, 0, 0.3);
+    ">
+        <div style="
+            background: rgba(255, 255, 255, 0.85);
+            border-radius: 12px;
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            position: relative;
+            z-index: 1;
+        ">
+            <div style="
+                font-size: 28px;
+                margin-left: 15px;
+                color: #FF5722;
+                text-shadow: 0 0 10px rgba(255, 87, 34, 0.7);
+            ">🎮</div>
+            <div style="text-align: right;">
+                <div style="
+                    color: #333;
+                    font-size: 16px;
+                    font-weight: bold;
+                    text-shadow: 0 0 3px rgba(255, 255, 255, 0.8);
+                ">תהנו!</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+@keyframes float {
+    0% { transform: translate(-50%, 0px); }
+    50% { transform: translate(-50%, -10px); }
+    100% { transform: translate(-50%, 0px); }
+}
+</style>
+    <div id="scene-container"></div>
+    
+    <div id="loading">טוען את העולם...</div>
+    
+    <div id="controls-info">
+        <p>תנועה קדימה: הקשה על קליק שמאלי בעכבר</p>
+        <p>תנועה אחורה: הקשה על קליק ימני בעכבר</p>
+        <p>מבט: הזיזו את העכבר</p>
+    </div>
+    
+    <div id="crosshair">+</div>
+    
+    <div id="next-screen">
+        <h1>הגעת ליעד!</h1>
+        <p>זהו המסך הבא.</p>
+        <button id="back-button">חזרה לעולם</button>
+    </div>
+    <!-- Modal for ending video -->
+<div id="ending-video-modal" style="
+display: none;
+position: fixed;
+top: 0;
+left: 0;
+width: 100%;
+height: 100%;
+background-color: rgba(0, 0, 0, 0.9);
+z-index: 2000;
+font-family: 'Varela Round', Arial, sans-serif;
+">
+<div style="
+    position: relative;
+    background-color: #000;
+    margin: 5% auto;
+    width: 90%;
+    max-width: 800px;
+    border-radius: 25px;
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.7);
+    animation: modalPopIn 0.7s;
+    direction: rtl;
+    border: 8px solid #8A2BE2;
+">
+    <div style="
+        background: linear-gradient(to left, #8A2BE2, #9370DB);
+        color: white;
+        padding: 20px;
+        border-radius: 17px 17px 0 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        position: relative;
+    ">
+        <div style="position: relative; display: inline-block;">
+            <h2 style="margin: 0; font-size: 32px; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); font-weight: bold;">המסע ממשיך...</h2>
+        </div>
+    </div>
+    <div style="padding: 0; background-color: black; border-radius: 0 0 17px 17px;">
+        <video id="ending-video" width="100%" style="display: block; border-radius: 0 0 17px 17px;">
+            <source src="vid/5.mp4" type="video/mp4">
+            הדפדפן שלך לא תומך בתגית וידאו.
+        </video>
+    </div>
+</div>
+</div>
+    <script>
+        // יצירת סצנה, מצלמה ורנדרר
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(-12.86, 10.20, 32.68); // מיקום התחלתי חדש לשחקן
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap; // צללים רכים יותר
+        
+        // הגדרת צבע רקע שמיים כחול
+        renderer.setClearColor(0x6495ED);
+        document.getElementById('scene-container').appendChild(renderer.domElement);
+        
+        // משתנים גלובליים
+        let controls;
+        let worldModel;
+        let isLoaded = false;
+        let clock = new THREE.Clock();
+        let ground; // משתנה לשמירת הרצפה
+        let tunnelObject; // משתנה לשמירת המנהרה
+        let tunnelWalls = []; // מערך לשמירת קולידרים של קירות המנהרה
+        let gameMachinePortals = [];
+        let playerCoins = 20; // מספר המטבעות ההתחלתי
+        let visitedGames = []; // מערך למעקב אחרי משחקים שכבר ביקרת בהם
+        let mainPortalVisible = false;
+        const WORLD_BOUNDS = {
+    minX: -20,
+    maxX: 20,
+    minZ: -20,
+    maxZ: 20
+};
+        
+        // משתנים לאודיו
+        let walkSound;
+        let isWalking = false;
+        const PLAYER_HEIGHT = 2.2;
+        // נקודת המעבר המיוחדת למסך הבא
+        const specialPortalPoint = new THREE.Vector3(-15.23, 2.20, 0.27); // עדכון גובה הפורטל
+        const portalRadius = 6; // רדיוס גדול יותר לאזור הפורטל
+        let portalParticles; // משתנה לשמירת מערכת החלקיקים של הפורטל
+        // משתנה גלובלי למודל ה-DJ
+let djModel;
+// הוסף משתנה גלובלי לעקוב אחרי מצב התנועה
+let movingForward = false;
+let movingBackward = false;
+
+// פונקציה לשליטה בתנועה
+const setupMovementControls = () => {
+    // הוספת מאזין לאירוע לחיצה על כפתור העכבר
+    document.addEventListener('mousedown', (e) => {
+        // בדיקה אם לחץ כפתור שמאלי (0)
+        if (e.button === 0) {
+            movingForward = true;
+            if (controls) controls.moveForward = true;
+            
+            if (!isWalking && walkSound) {
+                walkSound.play();
+                isWalking = true;
+            }
+        }
+        // בדיקה אם לחץ כפתור ימני (2)
+        else if (e.button === 2) {
+            movingBackward = true;
+            if (controls) controls.moveBackward = true;
+            
+            if (!isWalking && walkSound) {
+                walkSound.play();
+                isWalking = true;
+            }
+        }
+    });
+    
+    // הוספת מאזין לאירוע שחרור כפתור העכבר
+    document.addEventListener('mouseup', (e) => {
+        // בדיקה אם שוחרר כפתור שמאלי (0)
+        if (e.button === 0) {
+            movingForward = false;
+            if (controls) controls.moveForward = false;
+            
+            // עוצר צליל רק אם גם קדימה וגם אחורה לא פעילים
+            if (isWalking && !movingBackward && walkSound) {
+                walkSound.pause();
+                isWalking = false;
+            }
+        }
+        // בדיקה אם שוחרר כפתור ימני (2)
+        else if (e.button === 2) {
+            movingBackward = false;
+            if (controls) controls.moveBackward = false;
+            
+            // עוצר צליל רק אם גם קדימה וגם אחורה לא פעילים
+            if (isWalking && !movingForward && walkSound) {
+                walkSound.pause();
+                isWalking = false;
+            }
+        }
+    });
+    
+    // עצירת תנועה אוטומטית כשעוזבים את העמוד או עוברים ללשונית אחרת
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            // אם העמוד הוסתר, עצור את כל התנועה
+            if (controls) {
+                controls.moveForward = false;
+                controls.moveBackward = false;
+            }
+            movingForward = false;
+            movingBackward = false;
+            
+            if (isWalking && walkSound) {
+                walkSound.pause();
+                isWalking = false;
+            }
+        }
+    });
+    
+    // עצירת תנועה כשעוזבים את העמוד
+    window.addEventListener('beforeunload', () => {
+        if (controls) {
+            controls.moveForward = false;
+            controls.moveBackward = false;
+        }
+        movingForward = false;
+        movingBackward = false;
+        
+        if (isWalking && walkSound) {
+            walkSound.pause();
+            isWalking = false;
+        }
+    });
+    
+    // מניעת תפריט קליק ימני
+    document.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+    });
+};
+// פונקציה לטעינת מודל ה-DJ
+const loadDJModel = () => {
+    const loader = new THREE.GLTFLoader();
+    
+    loader.load(
+        '3d/dj.glb',
+        (gltf) => {
+            djModel = gltf.scene;
+            
+            // הגדרת צללים לכל המשים במודל
+            djModel.traverse((node) => {
+                if (node.isMesh) {
+                    node.castShadow = true;
+                    node.receiveShadow = true;
+                }
+            });
+            
+            // מיקום המודל בקואורדינטות המבוקשות
+            djModel.position.set(0.04, 1.60, -9.01);
+            
+            // סיבוב המודל לכיוון הנכון (תוכל להתאים את הזווית)
+            djModel.rotation.y = Math.PI * 0.1; // 90 מעלות - כיוון לצד
+            
+            // התאמת גודל המודל (תוכל לשנות לפי הצורך)
+            djModel.scale.set(4, 4, 4);
+            
+            // הוספת המודל לסצנה
+            scene.add(djModel);
+            
+            console.log('מודל ה-DJ נטען בהצלחה');
+            
+            // אפשרות להוסיף תאורה מיוחדת ל-DJ
+            addDJLighting();
+        },
+        (xhr) => {
+            console.log('טעינת מודל ה-DJ: ' + (xhr.loaded / xhr.total * 100) + '% טעון');
+        },
+        (error) => {
+            console.error('שגיאה בטעינת מודל ה-DJ:', error);
+        }
+    );
+};
+
+// פונקציה להוספת תאורה מיוחדת ל-DJ
+const addDJLighting = () => {
+    // תאורה צבעונית מתחלפת סביב ה-DJ
+    const colors = [0xff0000, 0x00ff00, 0x0000ff, 0xff00ff, 0xffff00];
+    
+    colors.forEach((color, index) => {
+        // יצירת אור נקודתי בצבע ספציפי
+        const light = new THREE.PointLight(color, 0.5, 5);
+        
+        // מיקום האור סביב ה-DJ
+        const angle = (index / colors.length) * Math.PI * 2;
+        const radius = 2;
+        
+        light.position.set(
+            0.04 + Math.cos(angle) * radius,
+            3.5,  // מעל ה-DJ
+            -9.01 + Math.sin(angle) * radius
+        );
+        
+        // הוספת האור לסצנה
+        scene.add(light);
+        
+        // אנימציה לאור - שינוי עוצמה עם הזמן
+        const clock = new THREE.Clock();
+        const animateLight = () => {
+            const elapsed = clock.getElapsedTime();
+            light.intensity = 0.3 + Math.sin(elapsed * 2 + index) * 0.2;
+            
+            requestAnimationFrame(animateLight);
+        };
+        
+        animateLight();
+    });
+};
+        // פונקציה ליצירת מודאל הסברים בסגנון רטרו
+// פונקציה ליצירת מודאל הסברים בסגנון רטרו - גרסה משופרת
+// פונקציה להצגת מודל הסרטון
+const setupVideoModal = () => {
+    const videoModal = document.getElementById('video-modal');
+    const introVideo = document.getElementById('intro-video');
+    const closeBtn = document.getElementById('close-video-modal');
+    
+    // הצגת המודל אחרי 3 שניות
+    setTimeout(() => {
+        videoModal.style.display = 'flex';
+        
+        // השבתת השליטה בזמן הצגת הסרטון
+        if (controls) {
+            controls.enabled = false;
+        }
+        
+        // עצירת כל הצלילים
+        if (window.backgroundMusic && window.backgroundMusic.playing()) {
+            window.backgroundMusic.pause();
+        }
+        
+        // הפעלת הסרטון אוטומטית
+        introVideo.play();
+        
+        // הוספת מאזין לסיום הסרטון
+        introVideo.addEventListener('ended', () => {
+            closeVideoAndShowWelcomeModal();
+        });
+        
+        // הוספת מאזין לכפתור הסגירה
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => {
+                closeVideoAndShowWelcomeModal();
+            });
+        }
+    }, 3000); // 3 שניות
+};
+
+// פונקציה לסגירת הסרטון והצגת מודל ההסבר
+const closeVideoAndShowWelcomeModal = () => {
+    const videoModal = document.getElementById('video-modal');
+    const introVideo = document.getElementById('intro-video');
+    
+    // עצירת הסרטון
+    introVideo.pause();
+    
+    // סגירת המודל
+    videoModal.style.display = 'none';
+    
+    // הצגת המודל של Welcome (ההסבר)
+    createWelcomeModal();
+};
+// פונקציה להצגת המשימה
+const setupMissionPopup = () => {
+    const missionPopup = document.getElementById('mission-popup');
+    
+    // מחביאים את החלונית בהתחלה
+    if (missionPopup) {
+        missionPopup.style.opacity = '0';
+        
+        // המשימה תוצג רק אחרי סגירת מודל ההסבר (Welcome)
+        document.addEventListener('welcomeModalClosed', () => {
+            setTimeout(() => {
+                missionPopup.style.opacity = '1';
+                missionPopup.style.transition = 'opacity 1.5s ease-out';
+            }, 1000);
+        });
+    } else {
+        console.error("Mission popup element not found!");
+    }
+};
+// סגירת המודאל בלחיצה על הכפתור
+
+const createWelcomeModal = () => {
+    if (controls) {
+        controls.enabled = false;
+    }
+    // יצירת המודאל
+    const modal = document.createElement('div');
+    modal.id = 'welcome-modal';
+    
+    // סגנון רטרו למודאל
+    modal.style.position = 'fixed';
+    modal.style.top = '0';
+    modal.style.left = '0';
+    modal.style.width = '100%';
+    modal.style.height = '100%';
+    modal.style.backgroundColor = 'rgba(0, 0, 0, 0.85)';
+    modal.style.zIndex = '1000';
+    modal.style.display = 'flex';
+    modal.style.justifyContent = 'center';
+    modal.style.alignItems = 'center';
+    modal.style.fontFamily = "'Press Start 2P', 'Courier New', monospace";
+    
+    // יצירת תוכן המודאל - גדול יותר
+    const modalContent = document.createElement('div');
+    modalContent.style.backgroundColor = '#000';
+    modalContent.style.border = '5px solid #39ff14'; // ניאון ירוק עבה יותר
+    modalContent.style.borderRadius = '15px';
+    modalContent.style.width = '90%';
+    modalContent.style.maxWidth = '700px'; // רוחב מקסימלי גדול יותר
+    modalContent.style.padding = '40px'; // ריפוד גדול יותר
+    modalContent.style.color = '#fff';
+    modalContent.style.position = 'relative';
+    modalContent.style.boxShadow = '0 0 20px #39ff14, 0 0 30px #39ff14, inset 0 0 15px rgba(57, 255, 20, 0.5)';
+    modalContent.style.animation = 'neonFlicker 2s infinite alternate';
+    
+    // כותרת בסגנון רטרו - גדולה יותר
+    const title = document.createElement('h1');
+    title.textContent = 'ברוכים הבאים למשחקיה';
+    title.style.color = '#FF00FF'; // ניאון ורוד
+    title.style.fontSize = '36px'; // גודל גדול יותר
+    title.style.marginBottom = '35px';
+    title.style.textShadow = '0 0 10px #FF00FF, 0 0 20px #FF00FF';
+    title.style.fontWeight = 'bold';
+    title.style.letterSpacing = '2px';
+    title.style.textAlign = 'right'; // יישור לימין
+    
+    // תוכן המודאל - גדול ומיושר יותר
+    const content = document.createElement('div');
+    content.style.fontSize = '22px'; // גופן גדול יותר משמעותית
+    content.style.lineHeight = '1.8'; // רווח בין שורות גדול יותר
+    content.style.marginBottom = '40px';
+    content.style.color = '#00FFFF'; // ציאן ניאון
+    content.style.textShadow = '0 0 5px #00FFFF';
+    content.style.direction = 'rtl';
+    content.style.textAlign = 'right'; // יישור לימין
+    content.style.paddingRight = '20px'; // רווח מימין למראה מסודר יותר
+    
+    // הוספת הטקסט עם נקודות ומיושר לימין
+    content.innerHTML = `
+        <div style="display: flex; margin-bottom: 15px; align-items: center;">
+            <div style="color: #FFFF00; font-size: 24px; margin-left: 10px;">•</div>
+            <div>לפניכם 6 מכונות עם משחקי עבר</div>
+        </div>
+        
+        <div style="display: flex; margin-bottom: 15px; align-items: center;">
+            <div style="color: #FFFF00; font-size: 24px; margin-left: 10px;">•</div>
+            <div>ברשותכם <span style="color: #FFFF00; font-size: 26px; text-shadow: 0 0 10px #FFFF00;">20 מטבעות</span></div>
+        </div>
+        
+        <div style="display: flex; margin-bottom: 15px; align-items: center;">
+            <div style="color: #FFFF00; font-size: 24px; margin-left: 10px;">•</div>
+            <div>כל מכונה דורשת 5 מטבעות עבור 2 דקות משחק</div>
+        </div>
+        
+        <div style="margin-top: 30px; color: #FFFF00; font-size: 26px; text-shadow: 0 0 10px #FFFF00; text-align: center;">
+            זה הזמן לשחק! בהצלחה
+        </div>
+    `;
+    
+    // כפתור התחלה - גדול יותר
+    const startButton = document.createElement('button');
+    startButton.textContent = 'התחל!';
+    startButton.style.backgroundColor = '#FF0000'; // אדום ניאון
+    startButton.style.color = 'white';
+    startButton.style.border = 'none';
+    startButton.style.borderRadius = '10px';
+    startButton.style.padding = '20px 50px'; // גדול יותר
+    startButton.style.fontSize = '24px'; // גופן גדול יותר
+    startButton.style.fontWeight = 'bold';
+    startButton.style.cursor = 'pointer';
+    startButton.style.fontFamily = "'Press Start 2P', 'Courier New', monospace";
+    startButton.style.boxShadow = '0 0 10px #FF0000, 0 0 20px #FF0000';
+    startButton.style.position = 'relative';
+    startButton.style.overflow = 'hidden';
+    startButton.style.transition = 'transform 0.2s, box-shadow 0.3s';
+    startButton.style.margin = '0 auto'; // מרכוז
+    startButton.style.display = 'block'; // הצגה כבלוק לאפשר מרכוז
+    
+    // אנימציית הבהוב לכפתור
+    startButton.style.animation = 'buttonPulse 1.5s infinite alternate';
+    
+    // אפקט מעבר עכבר על הכפתור
+    startButton.addEventListener('mouseover', () => {
+        startButton.style.transform = 'scale(1.1)';
+        startButton.style.boxShadow = '0 0 15px #FF0000, 0 0 30px #FF0000';
+    });
+    
+    startButton.addEventListener('mouseout', () => {
+        startButton.style.transform = 'scale(1)';
+        startButton.style.boxShadow = '0 0 10px #FF0000, 0 0 20px #FF0000';
+    });
+    
+    // סגירת המודאל בלחיצה על הכפתור
+    startButton.addEventListener('click', () => {
+    modal.style.animation = 'fadeOut 0.5s forwards';
+    
+    // יצירת אירוע custom להודעה על סגירת מודל ההסבר
+    document.dispatchEvent(new Event('welcomeModalClosed'));
+    
+    setTimeout(() => {
+        document.body.removeChild(modal);
+        // התחלת מוזיקת הרקע אחרי סגירת המודאל
+        if (window.backgroundMusic) {
+            window.backgroundMusic.play();
+        }
+        
+        // הפעלת השליטה מחדש אחרי שהמודאל נסגר
+        if (controls) {
+            controls.enabled = true;
+        }
+    }, 500);
+});
+    // הוספת סגנון אנימציה משופר
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes neonFlicker {
+            0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% {
+                box-shadow: 0 0 20px #39ff14, 0 0 30px #39ff14, inset 0 0 15px rgba(57, 255, 20, 0.5);
+                border-color: #39ff14;
+            }
+            20%, 24%, 55% {
+                box-shadow: none;
+                border-color: #555;
+            }
+        }
+        @keyframes buttonPulse {
+            0% {
+                box-shadow: 0 0 10px #FF0000, 0 0 20px #FF0000;
+            }
+            100% {
+                box-shadow: 0 0 15px #FF0000, 0 0 30px #FF0000, 0 0 50px #FF0000;
+            }
+        }
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+        @font-face {
+            font-family: 'Press Start 2P';
+            src: url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+        }
+    `;
+    
+    // הוספת גופן רטרו
+    const fontLink = document.createElement('link');
+    fontLink.rel = 'stylesheet';
+    fontLink.href = 'https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap';
+    document.head.appendChild(fontLink);
+    
+    // הרכבת המודאל
+    modalContent.appendChild(title);
+    modalContent.appendChild(content);
+    modalContent.appendChild(startButton);
+    modal.appendChild(modalContent);
+    document.head.appendChild(style);
+    
+    // הוספת אפקט רטרו של קווי סריקה
+    const scanlines = document.createElement('div');
+    scanlines.style.position = 'absolute';
+    scanlines.style.top = '0';
+    scanlines.style.left = '0';
+    scanlines.style.width = '100%';
+    scanlines.style.height = '100%';
+    scanlines.style.backgroundImage = 'linear-gradient(rgba(0, 0, 0, 0.1) 50%, rgba(0, 0, 0, 0.3) 50%)';
+    scanlines.style.backgroundSize = '100% 4px';
+    scanlines.style.pointerEvents = 'none';
+    scanlines.style.zIndex = '1001';
+    modal.appendChild(scanlines);
+    
+    // הוספת המודאל לדף
+    document.body.appendChild(modal);
+    
+    // עצירת מוזיקת הרקע בזמן שהמודאל פתוח
+    if (window.backgroundMusic) {
+        window.backgroundMusic.pause();
+    }
+};
+        // יצירת פורטל עם חלקיקי עשן סגול
+// יצירת פורטל עם חלקיקי עשן סגול
+const createPortalEffect = () => {
+    // יצירת גיאומטריה לחלקיקים
+    const particleCount = 500;
+    const particleGeometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(particleCount * 3);
+    const colors = new Float32Array(particleCount * 3);
+    
+    // הגדרת עשן במעגל סביב נקודת הפורטל
+    for (let i = 0; i < particleCount; i++) {
+        // מיקום אקראי בתוך ספירה
+        const angle = Math.random() * Math.PI * 2;
+        const radius = Math.random() * portalRadius;
+        const height = Math.random() * 5; // גובה החלקיקים
+        
+        // הוספת רנדומיות קטנה למיקום
+        positions[i * 3] = specialPortalPoint.x + Math.cos(angle) * radius;
+        positions[i * 3 + 1] = specialPortalPoint.y + height;
+        positions[i * 3 + 2] = specialPortalPoint.z + Math.sin(angle) * radius;
+        
+        // צבע סגול עם וריאציות קלות
+        colors[i * 3] = 0.5 + Math.random() * 0.2; // אדום
+        colors[i * 3 + 1] = 0; // ירוק
+        colors[i * 3 + 2] = 0.8 + Math.random() * 0.2; // כחול
+    }
+    
+    particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    particleGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    
+    // יצירת מטריאל לחלקיקים עם סוג ערבוב (Blending) מתאים לעשן
+    const particleMaterial = new THREE.PointsMaterial({
+        size: 0.4,
+        transparent: true,
+        opacity: 0.6,
+        vertexColors: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        sizeAttenuation: true
+    });
+    
+    // יצירת המערכת חלקיקים
+    portalParticles = new THREE.Points(particleGeometry, particleMaterial);
+    
+    // הפורטל מתחיל כבלתי נראה
+    portalParticles.visible = false; // פורטל לא נראה בהתחלה
+    
+    scene.add(portalParticles);
+    
+    // הוספת אור נקודתי סגול באזור הפורטל
+    const portalLight = new THREE.PointLight(0x9932CC, 1, 10);
+    portalLight.position.copy(specialPortalPoint);
+    portalLight.position.y += 1.5; // הרמת האור מעט
+    
+    // האור גם לא נראה בהתחלה
+    portalLight.visible = false;
+    
+    scene.add(portalLight);
+    
+    // שמירת האור לשימוש מאוחר יותר
+    portalParticles.userData.light = portalLight;
+};
+        // פונקציה להוספת תצוגת מטבעות
+// פונקציה להוספת תצוגת מטבעות - גרסה משופרת וגדולה יותר
+// פונקציה להוספת תצוגת מטבעות - גרסה משופרת וגדולה יותר
+const addCoinsDisplay = () => {
+    // יצירת מיכל למטבעות
+    const coinsContainer = document.createElement('div');
+    coinsContainer.id = 'coins-display';
+    
+    // עיצוב המיכל - גדול יותר
+    coinsContainer.style.position = 'fixed';
+    coinsContainer.style.top = '15px';
+    coinsContainer.style.left = '110px'; // שונה מ-60px ל-110px להזזה ימינה
+    coinsContainer.style.zIndex = '100';
+    coinsContainer.style.background = 'rgba(0, 0, 0, 0.7)'; // רקע כהה יותר
+    coinsContainer.style.color = 'white';
+    coinsContainer.style.border = '2px solid gold'; // הוספת מסגרת זהב
+    coinsContainer.style.borderRadius = '15px';
+    coinsContainer.style.padding = '12px 20px';
+    coinsContainer.style.fontSize = '18px'; // גופן גדול יותר
+    coinsContainer.style.display = 'flex';
+    coinsContainer.style.alignItems = 'center';
+    coinsContainer.style.fontFamily = 'Arial, sans-serif';
+    coinsContainer.style.direction = 'rtl'; // כיוון מימין לשמאל
+    coinsContainer.style.boxShadow = '0 0 10px rgba(255, 215, 0, 0.5)'; // תאורת זהב עדינה
+    
+    // הוספת כיתוב "כמות מטבעות שנשארו:"
+    const coinLabel = document.createElement('span');
+    coinLabel.textContent = 'כמות מטבעות שנשארו: ';
+    coinLabel.style.marginLeft = '10px';
+    coinLabel.style.fontWeight = 'bold';
+    
+    // הוספת מספר המטבעות - גדול יותר
+    const coinCount = document.createElement('span');
+    coinCount.id = 'coin-count';
+    coinCount.textContent = playerCoins;
+    coinCount.style.fontSize = '22px'; // גופן גדול יותר
+    coinCount.style.fontWeight = 'bold';
+    coinCount.style.color = 'gold'; // צבע זהב למספר
+    
+    // הוספת סמל המטבע - גדול יותר
+    const coinSymbol = document.createElement('span');
+    coinSymbol.innerHTML = '🪙';
+    coinSymbol.style.fontSize = '26px'; // גודל גדול יותר
+    coinSymbol.style.marginRight = '15px';
+    coinSymbol.style.marginLeft = '10px';
+    
+    // הרכבת התצוגה - הסדר: סמל, כיתוב, מספר
+    coinsContainer.appendChild(coinSymbol);
+    coinsContainer.appendChild(coinLabel);
+    coinsContainer.appendChild(coinCount);
+    
+    // הוספת התצוגה לדף
+    document.body.appendChild(coinsContainer);
+    
+    // הוספת אנימציה קלה למטבע בעת טעינה
+    setTimeout(() => {
+        coinSymbol.style.transition = 'transform 0.5s ease-in-out';
+        coinSymbol.style.transform = 'scale(1.2)';
+        setTimeout(() => {
+            coinSymbol.style.transform = 'scale(1)';
+        }, 500);
+    }, 1000);
+};
+// פונקציה לעדכון מספר המטבעות
+// פונקציה לעדכון מספר המטבעות
+const updateCoins = (amount) => {
+    // עדכון המשתנה הגלובלי
+    playerCoins = amount;
+    
+    // עדכון התצוגה
+    const coinCountElement = document.getElementById('coin-count');
+    if (coinCountElement) {
+        coinCountElement.textContent = playerCoins;
+    }
+    
+    // לא שומרים את המטבעות ב-localStorage כדי שהם יאופסו בכל ריענון
+    // localStorage.setItem('playerCoins', playerCoins); - שורה זו הוסרה
+    
+    // בדיקה אם המטבעות הגיעו ל-0
+    if (playerCoins === 0) {
+        showNoCoinsLeftModal();
+    }
+};
+// פונקציה להצגת מודאל "נגמרו המטבעות"
+// פונקציה להצגת מודאל "נגמרו המטבעות"
+const showNoCoinsLeftModal = () => {
+    // בדיקה שהמודאל לא קיים כבר
+    if (document.getElementById('no-coins-modal')) return;
+    
+    // יצירת המודאל
+    const modal = document.createElement('div');
+    modal.id = 'no-coins-modal';
+    modal.style.position = 'fixed';
+    modal.style.top = '0';
+    modal.style.left = '0';
+    modal.style.width = '100%';
+    modal.style.height = '100%';
+    modal.style.backgroundColor = 'rgba(0, 0, 0, 0.9)';
+    modal.style.zIndex = '1001'; // גבוה יותר משאר המודאלים
+    modal.style.display = 'flex';
+    modal.style.justifyContent = 'center';
+    modal.style.alignItems = 'center';
+    
+    // יצירת תוכן המודאל
+    const modalContent = document.createElement('div');
+    modalContent.style.backgroundColor = '#000';
+    modalContent.style.border = '5px solid #8A2BE2'; // סגול כהה כמו הפורטל
+    modalContent.style.borderRadius = '15px';
+    modalContent.style.padding = '40px';
+    modalContent.style.maxWidth = '600px';
+    modalContent.style.textAlign = 'center';
+    modalContent.style.boxShadow = '0 0 30px rgba(138, 43, 226, 0.7)';
+    modalContent.style.animation = 'pulse 2s infinite alternate';
+    modalContent.style.direction = 'rtl';
+    
+    // הוספת סגנון אנימציה
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes pulse {
+            0% { box-shadow: 0 0 30px rgba(138, 43, 226, 0.7); }
+            100% { box-shadow: 0 0 50px rgba(138, 43, 226, 0.9); }
+        }
+    `;
+    document.head.appendChild(style);
+    
+    // כותרת
+    const title = document.createElement('h1');
+    title.textContent = 'נגמרו לכם המטבעות!';
+    title.style.color = '#8A2BE2'; // סגול
+    title.style.fontSize = '36px';
+    title.style.marginBottom = '20px';
+    title.style.textShadow = '0 0 10px rgba(138, 43, 226, 0.7)';
+    
+    // הודעה - שינוי התוכן לפי הבקשה
+    const message = document.createElement('p');
+    message.textContent = 'חפשו את הדרך החוצה';
+    message.style.color = '#fff';
+    message.style.fontSize = '22px';
+    message.style.marginBottom = '30px';
+    message.style.lineHeight = '1.5';
+    
+    // הוספת איור של פורטל סגול
+    const portalIcon = document.createElement('div');
+    portalIcon.innerHTML = `
+        <svg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <radialGradient id="portalGrad" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+                    <stop offset="0%" style="stop-color:#9932CC;stop-opacity:1" />
+                    <stop offset="100%" style="stop-color:#4B0082;stop-opacity:0.7" />
+                </radialGradient>
+            </defs>
+            <circle cx="50" cy="50" r="45" fill="url(#portalGrad)">
+                <animate attributeName="r" values="45;48;45" dur="2s" repeatCount="indefinite" />
+                <animate attributeName="opacity" values="0.8;1;0.8" dur="2s" repeatCount="indefinite" />
+            </circle>
+            <circle cx="50" cy="50" r="30" fill="#4B0082" opacity="0.7" />
+        </svg>
+    `;
+    portalIcon.style.margin = '0 auto 30px auto';
+    
+    // כפתור המשך
+    const continueButton = document.createElement('button');
+    continueButton.textContent = 'המשך';
+    continueButton.style.backgroundColor = '#8A2BE2';
+    continueButton.style.color = '#fff';
+    continueButton.style.border = 'none';
+    continueButton.style.borderRadius = '10px';
+    continueButton.style.padding = '15px 40px';
+    continueButton.style.fontSize = '20px';
+    continueButton.style.fontWeight = 'bold';
+    continueButton.style.cursor = 'pointer';
+    continueButton.style.transition = 'all 0.3s';
+    continueButton.style.boxShadow = '0 0 15px rgba(138, 43, 226, 0.5)';
+    
+    // אפקט hover לכפתור
+    continueButton.addEventListener('mouseover', () => {
+        continueButton.style.backgroundColor = '#9932CC';
+        continueButton.style.transform = 'scale(1.05)';
+        continueButton.style.boxShadow = '0 0 20px rgba(138, 43, 226, 0.8)';
+    });
+    
+    continueButton.addEventListener('mouseout', () => {
+        continueButton.style.backgroundColor = '#8A2BE2';
+        continueButton.style.transform = 'scale(1)';
+        continueButton.style.boxShadow = '0 0 15px rgba(138, 43, 226, 0.5)';
+    });
+    
+    // אירוע לחיצה על כפתור המשך
+    continueButton.addEventListener('click', () => {
+        // הסרת המודאל
+        document.body.removeChild(modal);
+        
+        // הפעלת הפורטל הוורוד
+        activateMainPortal();
+    });
+    
+    // הרכבת המודאל
+    modalContent.appendChild(title);
+    modalContent.appendChild(message);
+    modalContent.appendChild(portalIcon);
+    modalContent.appendChild(continueButton);
+    modal.appendChild(modalContent);
+    
+    // הוספת המודאל לדף
+    document.body.appendChild(modal);
+    
+    // השהיית השליטה בזמן שהמודאל פתוח
+    if (controls) controls.enabled = false;
+};
+// פונקציה להפעלת הפורטל הוורוד
+const activateMainPortal = () => {
+    // הגדרת הפורטל כנראה
+    mainPortalVisible = true;
+    
+    // החזרת השליטה למשתמש
+    if (controls) controls.enabled = true;
+    
+    // עדכון נראות החלקיקים של הפורטל
+    if (portalParticles) {
+        portalParticles.visible = true;
+        
+        // הוספת אפקט הפעלה - גידול החלקיקים
+        const originalSize = portalParticles.material.size;
+        portalParticles.material.size = 0; // מתחיל מגודל 0
+        
+        // אנימציה להגדלת החלקיקים
+        let growthTimer = 0;
+        const growthInterval = setInterval(() => {
+            growthTimer += 0.1;
+            const newSize = originalSize * (1 - Math.exp(-growthTimer));
+            portalParticles.material.size = newSize;
+            
+            if (growthTimer >= 3) {
+                clearInterval(growthInterval);
+                portalParticles.material.size = originalSize;
+            }
+        }, 50);
+    }
+    
+    // הוספת אפקט קולי להפעלת הפורטל
+    try {
+        const portalActivateSound = new Howl({
+            src: ['audio/portal_activate.mp3'],
+            volume: 0.7
+        });
+        portalActivateSound.play();
+    } catch (e) {
+        console.log('לא ניתן להפעיל אפקט קולי:', e);
+    }
+    
+    // הוספת התראה למשתמש
+    showNotification('פורטל המילוט פעיל! גש אליו כדי לסיים את המשחקייה');
+};
+// פונקציה להורדת מטבע
+const spendCoin = () => {
+    if (playerCoins >= 5) {
+        // מוריד 5 מטבעות בכל פעם
+        updateCoins(playerCoins - 5);
+    } else {
+        // הודעה כשאין מספיק מטבעות
+        alert('אין מספיק מטבעות! צריך לפחות 5 מטבעות כדי לשחק.');
+    }
+};
+        // אנימציה לפורטל
+// אנימציה לפורטל
+const animatePortal = () => {
+    // אם הפורטל לא אמור להיות נראה או אין חלקיקים, צא מהפונקציה
+    if (!mainPortalVisible || !portalParticles) return;
+    
+    // עדכון נראות הפורטל והאור שלו לפי הדגל
+    portalParticles.visible = mainPortalVisible;
+    
+    if (portalParticles.userData.light) {
+        portalParticles.userData.light.visible = mainPortalVisible;
+    }
+    
+    const positions = portalParticles.geometry.attributes.position.array;
+    
+    for (let i = 0; i < positions.length; i += 3) {
+        // תנועה אקראית קלה
+        positions[i] += (Math.random() - 0.5) * 0.05;
+        positions[i + 1] += Math.random() * 0.05; // תנועה קלה למעלה
+        positions[i + 2] += (Math.random() - 0.5) * 0.05;
+        
+        // החזר חלקיקים שיצאו חזרה לאזור הפורטל
+        const dx = positions[i] - specialPortalPoint.x;
+        const dz = positions[i + 2] - specialPortalPoint.z;
+        const distance = Math.sqrt(dx * dx + dz * dz);
+        
+        if (distance > portalRadius || positions[i + 1] > specialPortalPoint.y + 5) {
+            // אם החלקיק יצא מהגבולות, החזר אותו למיקום חדש בתוך הפורטל
+            const angle = Math.random() * Math.PI * 2;
+            const radius = Math.random() * portalRadius * 0.7;
+            
+            positions[i] = specialPortalPoint.x + Math.cos(angle) * radius;
+            positions[i + 1] = specialPortalPoint.y + Math.random() * 2.5;
+            positions[i + 2] = specialPortalPoint.z + Math.sin(angle) * radius;
+        }
+    }
+    
+    portalParticles.geometry.attributes.position.needsUpdate = true;
+};
+        
+        // פונקציה לבדיקת מיקום חדש ומעבר למסך הבא
+// פונקציה לבדיקת מיקום חדש ומעבר למסך הבא
+const checkCustomLocationPoints = (position) => {
+    // אם הפורטל לא אמור להיות נראה, צא מהפונקציה
+    if (!mainPortalVisible) return false;
+    
+    // בדיקת מרחק מנקודת הפורטל המיוחדת
+    const distanceToPortal = position.distanceTo(specialPortalPoint);
+    
+    if (distanceToPortal < portalRadius / 2) { // כאשר השחקן באמת קרוב לפורטל
+        // איפוס מצב התנועה
+        movingForward = false;
+        movingBackward = false;
+        if (controls) {
+            controls.moveForward = false;
+            controls.moveBackward = false;
+        }
+        
+        // עצירת צליל ההליכה אם פעיל
+        if (isWalking && walkSound) {
+            walkSound.pause();
+            isWalking = false;
+        }
+        
+        // במקום מעבר ישיר, פתח את סרטון הסיום
+        openEndingVideoModal();
+        return true;
+    }
+    
+    return false;
+};
+        
+        // קבוע גובה השחקן מעל האדמה
+        
+        
+        // תאורה ואפקטים
+        const setupLighting = () => {
+            // אור סביבה
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+            scene.add(ambientLight);
+            
+            // אור השמש הראשי
+            const sunLight = new THREE.DirectionalLight(0xfffaf0, 1.0);
+            sunLight.position.set(10, 20, 15);
+            sunLight.castShadow = true;
+            
+            // הגדרות צל איכותיות יותר
+            sunLight.shadow.mapSize.width = 2048;
+            sunLight.shadow.mapSize.height = 2048;
+            sunLight.shadow.camera.near = 0.5;
+            sunLight.shadow.camera.far = 50;
+            sunLight.shadow.camera.left = -20;
+            sunLight.shadow.camera.right = 20;
+            sunLight.shadow.camera.top = 20;
+            sunLight.shadow.camera.bottom = -20;
+            sunLight.shadow.bias = -0.0003;
+            
+            scene.add(sunLight);
+            
+            // נקודת אור משנית לתאורת מילוי
+            const fillLight = new THREE.DirectionalLight(0xc2d1ff, 0.5);
+            fillLight.position.set(-10, 10, -10);
+            scene.add(fillLight);
+            
+            // אור נקודתי עדין במרכז הסצנה
+            const pointLight = new THREE.PointLight(0xffedbe, 0.5, 20);
+            pointLight.position.set(0, 12, 0);
+            scene.add(pointLight);
+            
+            // ערפל לתחושת עומק
+            scene.fog = new THREE.FogExp2(0x8eb5e0, 0.006); // הקטנת ערך הצפיפות לגובה הגדול יותר
+        };
+        
+        // יצירת טקסטורת רצפה בסגנון כביש
+// יצירת טקסטורת רצפה בסגנון כביש ללא סימונים
+// יצירת טקסטורת רצפה בסגנון רחוב ישן עם מרצפות מלבניות בגוון חום כהה
+const createRoadTexture = () => {
+    const textureSize = 1024;
+    const canvas = document.createElement('canvas');
+    canvas.width = textureSize;
+    canvas.height = textureSize;
+    const ctx = canvas.getContext('2d');
+    
+    // צבע רקע כהה
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // יצירת דפוס משבצות שחור-לבן
+    const tileSize = 16; // גודל כל משבצת
+    const numTiles = canvas.width / tileSize;
+    
+    for (let x = 0; x < numTiles; x++) {
+        for (let y = 0; y < numTiles; y++) {
+            // צבע המשבצת - שחור או לבן לסירוגין
+            const isWhite = (x + y) % 2 === 0;
+            
+            if (isWhite) {
+                ctx.fillStyle = '#FFFFFF';
+                ctx.fillRect(x * tileSize, y * tileSize, tileSize, tileSize);
+            } else {
+                // משבצות שחורות עם גוון מעט אפור כדי שיהיה ניתן לראות אותן
+                ctx.fillStyle = '#101010';
+                ctx.fillRect(x * tileSize, y * tileSize, tileSize, tileSize);
+            }
+        }
+    }
+    
+    // הוספת אפקט השתקפות סגולה
+    ctx.globalCompositeOperation = 'overlay';
+    
+    // יצירת גרדיאנט סגול
+    const gradient = ctx.createRadialGradient(
+        canvas.width/2, canvas.height/2, 0,
+        canvas.width/2, canvas.height/2, canvas.width/2
+    );
+    gradient.addColorStop(0, 'rgba(180, 0, 255, 0.6)');
+    gradient.addColorStop(0.5, 'rgba(150, 0, 200, 0.4)');
+    gradient.addColorStop(1, 'rgba(100, 0, 150, 0.2)');
+    
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // הוספת אפקט השתקפות/ברק
+    ctx.globalCompositeOperation = 'lighter';
+    
+    // הוספת נקודות ברק על הרצפה
+    for (let i = 0; i < 15; i++) {
+        const x = Math.random() * canvas.width;
+        const y = Math.random() * canvas.height;
+        const size = 100 + Math.random() * 150;
+        
+        const reflection = ctx.createRadialGradient(x, y, 0, x, y, size);
+        reflection.addColorStop(0, 'rgba(255, 200, 255, 0.3)');
+        reflection.addColorStop(0.5, 'rgba(180, 120, 220, 0.1)');
+        reflection.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        
+        ctx.fillStyle = reflection;
+        ctx.beginPath();
+        ctx.arc(x, y, size, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    
+    // חזרה למצב ציור רגיל
+    ctx.globalCompositeOperation = 'source-over';
+    
+    // יצירת טקסטורה מהקנבס
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(2, 2); // פחות חזרות לריבועים גדולים יותר
+    
+    return texture;
+};
+
+// פונקציה להוספת טקסטורה לכל אבן
+const addStoneTexture = (ctx, x, y, width, height) => {
+    // הוספת מרקם מחוספס לאבן
+    for (let i = 0; i < width * height / 40; i++) {
+        const px = x + Math.random() * width;
+        const py = y + Math.random() * height;
+        const size = Math.random() * 2 + 0.5;
+        
+        // צבע אקראי לכתם - גוון של חום כהה
+        ctx.fillStyle = `rgba(45, 30, 20, ${Math.random() * 0.3})`;
+        ctx.beginPath();
+        ctx.arc(px, py, size, 0, Math.PI * 2);
+        ctx.fill();
+    }
+};
+
+// פונקציה להוספת שחיקה, סדקים וכתמים על הרצפה
+const addWearAndTear = (ctx, width, height, tileWidth, tileHeight, groutWidth) => {
+    // הוספת סדקים אקראיים
+    for (let i = 0; i < 120; i++) {
+        const x = Math.random() * width;
+        const y = Math.random() * height;
+        const length = 8 + Math.random() * 30;
+        const angle = Math.random() * Math.PI * 2;
+        
+        ctx.strokeStyle = `rgba(30, 20, 15, ${Math.random() * 0.6 + 0.2})`;
+        ctx.lineWidth = Math.random() * 1.5 + 0.5;
+        
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        
+        // סדק מפותל
+        let currentX = x;
+        let currentY = y;
+        const segments = 2 + Math.floor(Math.random() * 3);
+        const segmentLength = length / segments;
+        
+        for (let j = 0; j < segments; j++) {
+            const segAngle = angle + (Math.random() * 0.5 - 0.25);
+            currentX += Math.cos(segAngle) * segmentLength;
+            currentY += Math.sin(segAngle) * segmentLength;
+            ctx.lineTo(currentX, currentY);
+        }
+        
+        ctx.stroke();
+    }
+    
+    // הוספת כתמים וכהויות
+    for (let i = 0; i < 300; i++) {
+        const x = Math.random() * width;
+        const y = Math.random() * height;
+        const size = 5 + Math.random() * 15;
+        
+        // צבעים שונים לכתמים
+        let color;
+        const type = Math.random();
+        
+        if (type < 0.6) {
+            // כתם כהה יותר (שחיקה)
+            color = `rgba(20, 15, 10, ${Math.random() * 0.3})`;
+        } else if (type < 0.9) {
+            // כתם חום כהה (לכלוך)
+            color = `rgba(40, 25, 15, ${Math.random() * 0.4})`;
+        } else {
+            // כתם חום-אדמדם (חלודה)
+            color = `rgba(60, 30, 20, ${Math.random() * 0.3})`;
+        }
+        
+        const gradient = ctx.createRadialGradient(x, y, 0, x, y, size);
+        gradient.addColorStop(0, color);
+        gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(x, y, size, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    
+    // ציור קווי חיבור בין המלבנים בצבע כהה יותר
+    // קווים אנכיים
+    for (let x = 0; x < width; x += tileWidth) {
+        ctx.strokeStyle = `rgba(15, 10, 5, 0.9)`; // חיבורים כהים יותר
+        ctx.lineWidth = groutWidth;
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, height);
+        ctx.stroke();
+    }
+    
+    // קווים אופקיים
+    for (let y = 0; y < height; y += tileHeight) {
+        ctx.strokeStyle = `rgba(15, 10, 5, 0.9)`;
+        ctx.lineWidth = groutWidth;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(width, y);
+        ctx.stroke();
+    }
+    
+    // הוספת אפקט רטיבות אקראי
+    for (let i = 0; i < 15; i++) {
+        const x = Math.random() * width;
+        const y = Math.random() * height;
+        const size = 30 + Math.random() * 80;
+        
+        const gradient = ctx.createRadialGradient(x, y, 0, x, y, size);
+        gradient.addColorStop(0, 'rgba(25, 15, 10, 0.3)');
+        gradient.addColorStop(0.7, 'rgba(25, 15, 10, 0.1)');
+        gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(x, y, size, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    
+    // הוספת מעט ברק לאבנים בנקודות מסוימות (כמו שיש לפעמים ברצפות ישנות)
+    for (let i = 0; i < 100; i++) {
+        const x = Math.random() * width;
+        const y = Math.random() * height;
+        const size = 1 + Math.random() * 3;
+        
+        ctx.fillStyle = `rgba(100, 80, 60, ${Math.random() * 0.2 + 0.1})`;
+        ctx.beginPath();
+        ctx.arc(x, y, size, 0, Math.PI * 2);
+        ctx.fill();
+    }
+};
+        
+        // יצירת קרקע שטוחה בסגנון כביש
+// יצירת קרקע שטוחה בסגנון כביש
+// יצירת קרקע שטוחה בצורת ריבוע אמיתי
+const createFlatRoadGround = () => {
+    // יצירת ריבוע אמיתי כרצפה
+    const boxWidth = 200;
+    const boxDepth = 200;
+    const boxHeight = 1; // גובה דק מאוד
+    
+    // שימוש ב-BoxGeometry שיוצרת ריבוע מושלם
+    const geometry = new THREE.BoxGeometry(boxWidth, boxHeight, boxDepth);
+    
+    // יצירת המטריאל עם טקסטורת כביש
+    const roadTexture = createRoadTexture();
+    
+    // הגדרת מערך של מטריאלים לכל פאה של הקופסה
+    const materials = [
+        new THREE.MeshStandardMaterial({ color: 0x555555 }), // צד ימין
+        new THREE.MeshStandardMaterial({ color: 0x555555 }), // צד שמאל
+        new THREE.MeshStandardMaterial({ map: roadTexture, roughness: 0.9, metalness: 0.1 }), // למעלה (הרצפה עצמה)
+        new THREE.MeshStandardMaterial({ color: 0x555555 }), // למטה
+        new THREE.MeshStandardMaterial({ color: 0x555555 }), // חזית
+        new THREE.MeshStandardMaterial({ color: 0x555555 })  // גב
+    ];
+    
+    ground = new THREE.Mesh(geometry, materials);
+    
+    // מיקום הרצפה בגובה 0
+    ground.position.y = -0.5; // חצי מהגובה כדי שהחלק העליון יהיה בדיוק בגובה 0
+    ground.receiveShadow = true;
+    scene.add(ground);
+    
+    return ground;
+};
+        
+        // יצירת קולידרים לקירות המנהרה
+        
+        // בדיקת התנגשות עם קירות המנהרה
+
+        
+
+
+
+
+        // יצירת מערכת שליטה בגוף ראשון
+        const setupFirstPersonControls = () => {
+    controls = new THREE.FirstPersonControls(camera, renderer.domElement);
+    controls.movementSpeed = 4;
+    controls.lookSpeed = 0.03;
+    controls.lookVertical = true;
+    controls.constrainVertical = true;
+    controls.verticalMin = Math.PI / 6;
+    controls.verticalMax = Math.PI / 1.8;
+    
+    // שים לב שבהתחלה השליטה מושבתת
+    controls.enabled = false;
+            // הגדרת אזור מת בקצוות המסך שיעצור את התזוזה
+            const boundaryThreshold = 0.05; // 5% מהקצה (95% מהמסך פעיל)
+            
+            // האזנה לתזוזת העכבר
+            document.addEventListener('mousemove', (e) => {
+                const mouseX = e.clientX / window.innerWidth;
+                const mouseY = e.clientY / window.innerHeight;
+                
+                // בדיקה אם העכבר נמצא באזור המת (קרוב לקצוות)
+                const isNearLeftEdge = mouseX < boundaryThreshold;
+                const isNearRightEdge = mouseX > (1 - boundaryThreshold);
+                const isNearTopEdge = mouseY < boundaryThreshold;
+                const isNearBottomEdge = mouseY > (1 - boundaryThreshold);
+                
+                // עצירת התזוזה אם העכבר בקצוות
+                if (isNearLeftEdge || isNearRightEdge || isNearTopEdge || isNearBottomEdge) {
+                    if (controls.activeLook !== false) {
+                        controls.activeLook = false;
+                    }
+                } else {
+                    if (controls.activeLook !== true) {
+                        controls.activeLook = true;
+                    }
+                }
+            });
+        };
+        
+        // טעינת מודל GLB (רק tunnel.glb)
+        const loadTunnelModel = () => {
+    const loader = new THREE.GLTFLoader();
+    
+    // הצגת הודעת טעינה
+    document.getElementById('loading').style.display = 'block';
+    document.getElementById('loading').textContent = 'טוען את המודל...';
+    
+    loader.load(
+        '3d/games.glb',
+        (gltf) => {
+            const model = gltf.scene;
+            
+            // הגדרת צללים לכל המשים במודל
+            model.traverse((node) => {
+                if (node.isMesh) {
+                    node.castShadow = true;
+                    node.receiveShadow = true;
+                    
+                    // היפוך הנורמלים אם זה לא מודל שהועלה על-ידי המשתמש
+
+                }
+            });
+            
+            // שמירה על הסקייל והמיקום המקוריים של המודל
+            model.scale.set(2, 3, 2);
+            model.position.set(0, 8, 0); // שמירה על הגובה המקורי
+            
+            // שמירת המודל למשתנה הגלובלי
+            worldModel = model;
+            
+            scene.add(model);
+            document.getElementById('loading').style.display = 'none';
+            isLoaded = true;
+        },
+        (xhr) => {
+            const percentComplete = (xhr.loaded / xhr.total) * 100;
+            document.getElementById('loading').textContent = 
+                `טוען את המודל... ${Math.round(percentComplete)}%`;
+        },
+        (error) => {
+            console.error('שגיאה בטעינת המודל:', error);
+            document.getElementById('loading').style.display = 'none';
+            isLoaded = true;
+        }
+    );
+};
+        
+        // חזרה לעולם
+        document.getElementById('back-button').addEventListener('click', () => {
+            document.getElementById('next-screen').style.display = 'none';
+            controls.enabled = true; // הפעלת השליטה מחדש
+        });
+        
+        // התאמת גודל החלון
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            
+            if (controls) {
+                controls.handleResize();
+            }
+        });
+        
+// הגדרת סאונד להליכה
+const setupWalkSound = () => {
+    // יצירת אובייקט סאונד להליכה עם האופציה להפעלה חוזרת (loop)
+    walkSound = new Howl({
+        src: ['audio/walk.mp3'],
+        loop: true,
+        volume: 0.7
+    });
+
+    
+    // הוספת מאזין לאירוע לחיצה על כפתור העכבר
+    document.addEventListener('mousedown', (e) => {
+        // בדיקה אם לחץ כפתור שמאלי (0) ולא בתוך מודאל פתוח
+        if (e.button === 0 && !isWalking && !document.getElementById('game-modal')?.classList.contains('show')) {
+            walkSound.play();
+            isWalking = true;
+        }
+    });
+    
+    // הוספת מאזין לאירוע שחרור כפתור העכבר
+    document.addEventListener('mouseup', (e) => {
+        // בדיקה אם שוחרר כפתור שמאלי (0)
+        if (e.button === 0 && isWalking) {
+            walkSound.pause();
+            isWalking = false;
+        }
+    });
+    
+    // מניעת תפריט קליק ימני
+    document.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+    });
+    
+    // איפוס מצב ההליכה כשהדף נטען מחדש
+    window.addEventListener('load', () => {
+        isWalking = false;
+    });
+};
+
+        // פונקציה לטעינת מודל המכונה
+const loadMachineModel = () => {
+    const loader = new THREE.GLTFLoader();
+    
+    loader.load(
+        '3d/machine.glb',
+        (gltf) => {
+            const model = gltf.scene;
+            
+            // הגדרת צללים לכל המשים במודל
+            model.traverse((node) => {
+                if (node.isMesh) {
+                    node.castShadow = true;
+                    node.receiveShadow = true;
+                }
+            });
+            
+            // מיקום המודל בקואורדינטות המבוקשות
+            model.position.set(-39, 1.6, 18.37);
+            
+            // סקייל המודל - אפשר להתאים לפי הצורך
+            model.scale.set(1, 1, 1);
+            
+            // הוספת המודל לסצנה
+            scene.add(model);
+            console.log('Machine model loaded successfully');
+        },
+        (xhr) => {
+            console.log(`Machine model loading: ${(xhr.loaded / xhr.total) * 100}% loaded`);
+        },
+        (error) => {
+            console.error('Error loading machine model:', error);
+        }
+    );
+};
+        // אתחול הסצנה
+// פונקציה לפתיחת מודאל סרטון הסיום
+const openEndingVideoModal = () => {
+    const modal = document.getElementById('ending-video-modal');
+    const video = document.getElementById('ending-video');
+    
+    if (!modal || !video) {
+        console.error('לא נמצאו אלמנטי המודאל או הסרטון');
+        window.location.href = 'future.html'; // מעבר חירום אם המודאל לא נמצא
+        return;
+    }
+    
+    // איפוס מצב התנועה
+    movingForward = false;
+    movingBackward = false;
+    if (controls) {
+        controls.moveForward = false;
+        controls.moveBackward = false;
+        controls.enabled = false;
+    }
+    
+    // עצירת המוזיקה אם מתנגנת
+    if (window.backgroundMusic && window.backgroundMusic.playing()) {
+        window.backgroundMusic.pause();
+    }
+    
+    // עצירת צליל ההליכה אם פעיל
+    if (isWalking && walkSound) {
+        walkSound.pause();
+        isWalking = false;
+    }
+    
+    // הצגת המודאל
+    modal.style.display = 'flex';
+    
+    // הוספת מאזין לסיום הסרטון
+    video.addEventListener('ended', () => {
+        // מעבר לדף הבא כשהסרטון מסתיים
+        window.location.href = 'future.html';
+    });
+    
+    // הפעלת הסרטון
+    video.play().catch(err => {
+        console.error('שגיאה בהפעלת הסרטון:', err);
+        // אם הפעלת הסרטון נכשלה, עבור לדף הבא
+        setTimeout(() => {
+            window.location.href = 'future.html';
+        }, 1000);
+    });
+};
+const init = () => {
+    // הגדרת תאורה
+    setupLighting();
+    
+    // מיקום המצלמה והסיבוב
+    camera.rotation.set(
+        THREE.MathUtils.degToRad(100),
+        THREE.MathUtils.degToRad(220),
+        0
+    );
+    
+    // יצירת קרקע שטוחה
+    createFlatRoadGround();
+    
+    // הגדרת שליטה בגוף ראשון
+    setupFirstPersonControls();
+    
+    // הגדרת סאונד להליכה
+    setupWalkSound();
+    
+    // הגדרת בקרות תנועה - הוספת הקריאה החדשה
+    setupMovementControls();
+    
+    // הגדרת מוזיקת רקע
+    setupBackgroundMusic();
+    
+    // הוספת תמונות מעל המכונות
+    addMachineImages();
+    
+    // יצירת אפקט פורטל העיקרי
+    createPortalEffect();
+    
+    // הוספת פורטלים למכונות המשחק
+    addGameMachinePortals();
+    
+    // הוספת תצוגת מטבעות
+    addCoinsDisplay();
+    
+    // איפוס המטבעות ל-20 בכל פעם שהעמוד נטען
+    playerCoins = 20;
+    updateCoins(20);
+    
+    // איפוס רשימת המשחקים שביקרת בהם
+    visitedGames = [];
+    
+    // הסרת נתונים קודמים מהלוקל סטורג'
+    localStorage.removeItem('playerCoins');
+    localStorage.removeItem('visitedGames');
+    
+    // מיקום השחקן בנקודת ההתחלה
+    camera.position.set(-17.24, PLAYER_HEIGHT, -0.94);
+    
+    // טעינת מודל GLB
+    loadTunnelModel();
+    loadDJModel();
+    loadMultipleMachines();
+    
+    // הגדרת חלונית המשימה
+    setupMissionPopup();
+    
+    // טיימר לטעינה
+    setTimeout(() => {
+        if (document.getElementById('loading').style.display !== 'none') {
+            document.getElementById('loading').style.display = 'none';
+            isLoaded = true;
+        }
+    }, 1000);
+    
+    // התחלת לולאת האנימציה
+    animate();
+    
+    // הצגת מודל הסרטון
+    setupVideoModal();
+};
+
+const addModalStyles = () => {
+    const style = document.createElement('style');
+    style.textContent = `
+        #game-modal {
+            transition: opacity 0.3s ease-in-out;
+            opacity: 0;
+        }
+        #game-modal.show {
+            opacity: 1;
+        }
+        #game-modal .modal-content {
+            transition: transform 0.3s ease-in-out;
+            transform: translateY(20px);
+        }
+        #game-modal.show .modal-content {
+            transform: translateY(0);
+        }
+        
+        /* אנימציה לכפתור הסגירה */
+        #game-modal span:hover {
+            color: #ff00ff;
+            transform: scale(1.1);
+            transition: all 0.2s ease-in-out;
+        }
+        
+        /* מניעת גלילה כשהמודאל פתוח */
+        body.modal-open {
+            overflow: hidden;
+            position: fixed;
+            width: 100%;
+            height: 100%;
+        }
+    `;
+    document.head.appendChild(style);
+};
+        // פונקציה לטעינת מספר מכונות במיקומים שונים
+// פונקציה לטעינת מספר מכונות במיקומים שונים
+// פונקציה לטעינת מספר מכונות במיקומים ובזוויות קבועות
+const loadMultipleMachines = () => {
+    const loader = new THREE.GLTFLoader();
+    
+    // מערך של מיקומים וזוויות למכונות השונות
+    const machinePositions = [
+        { x: -7.11, y: 2, z: 11.75, rotation: Math.PI * 1.0 },   // מכונה 1 - 90 מעלות
+        { x: 0.74, y: 2, z: 15.23, rotation: Math.PI },         // מכונה 2 - 180 מעלות
+        { x: 8.09, y: 2, z: 13.59, rotation: Math.PI * 1.3 },   // מכונה 3 - 270 מעלות
+        { x: 15.77, y: 2, z: 7.09, rotation: Math.PI * 1.4 },               // מכונה 4 - 0 מעלות
+        { x: 16, y: 2, z: 0.01, rotation: Math.PI * 1.8 },     // מכונה 5 - 45 מעלות
+        { x: 10.95, y: 2, z: -5.55, rotation: Math.PI * 1.75 }  // מכונה 6 - 315 מעלות
+    ];
+    
+    // טעינת המודל פעם אחת ויצירת עותקים
+    loader.load(
+        '3d/machine.glb',
+        (gltf) => {
+            const originalModel = gltf.scene;
+            
+            // טיפול בכל המכונות לפי מערך המיקומים
+            machinePositions.forEach((position, index) => {
+                // יצירת עותק חדש של המודל לכל מכונה
+                const model = originalModel.clone();
+                
+                // הגדרת צללים לכל המשים במודל
+                model.traverse((node) => {
+                    if (node.isMesh) {
+                        node.castShadow = true;
+                        node.receiveShadow = true;
+                    }
+                });
+                
+                // מיקום המודל לפי המיקום הספציפי מהמערך
+                model.position.set(position.x, position.y, position.z);
+                
+                // סיבוב המכונה לפי הזווית שהוגדרה (סביב ציר ה-Y)
+                model.rotation.y = position.rotation;
+                
+                // סקייל המודל - אחיד לכל המכונות
+                model.scale.set(2, 2, 2);
+                
+                // הוספת המודל לסצנה
+                scene.add(model);
+                console.log(`Machine ${index + 1} loaded successfully at position`, position);
+            });
+        },
+        (xhr) => {
+            console.log(`Machines loading: ${(xhr.loaded / xhr.total) * 100}% loaded`);
+        },
+        (error) => {
+            console.error('Error loading machine models:', error);
+        }
+    );
+};
+// פונקציה להוספת תמונה על הקיר
+// פונקציה להוספת מספר תמונות מעל המכונות
+const addMachineImages = () => {
+    // מערך של מיקומים, סיבובים ושמות קבצי התמונות
+    const imagePositions = [
+        { x: -7.11, y: 7.5, z: 11.75, rotation: Math.PI * 0.0, image: 'img/flagDave.jpg', flipSide: true },
+        { x: 0.74, y: 7.5, z: 15.23, rotation: Math.PI * 0.0, image: 'img/flagPacman.jpg', flipSide: true },
+        { x: 8.09, y: 7.5, z: 13.59, rotation: Math.PI * 0.3, image: 'img/flagSonic.jpg', flipSide: true },
+        { x: 15.77, y: 7.5, z: 7.09, rotation: Math.PI * 0.4, image: 'img/flagSpace.jpg', flipSide: true },
+        { x: 16, y: 7.5, z: 0.01, rotation: Math.PI * 1.8, image: 'img/flagDigger.jpg', flipSide: false },
+        { x: 10.95, y: 7.5, z: -5.55, rotation: Math.PI * 1.75, image: 'img/flagMario.jpg', flipSide: false }
+    ];
+    
+    // טעינת טקסטורות ויצירת המשים
+    const textureLoader = new THREE.TextureLoader();
+    
+    // מעבר על כל אחת מהתמונות במערך
+    imagePositions.forEach((item, index) => {
+        textureLoader.load(
+            item.image,
+            (texture) => {
+                // חישוב יחס רוחב:גובה של התמונה
+                const aspectRatio = texture.image.width / texture.image.height;
+                
+                // גודל התמונה (רוחב=1.5 מטר, גובה מחושב לפי היחס)
+                const width = 1.5;
+                const height = width / aspectRatio;
+                
+                // יצירת גיאומטריה של התמונה
+                const geometry = new THREE.PlaneGeometry(width, height);
+                
+                // יצירת חומר עם הטקסטורה
+                const material = new THREE.MeshBasicMaterial({
+                    map: texture,
+                    side: THREE.DoubleSide,
+                    transparent: true
+                });
+                
+                // יצירת המש של התמונה
+                const imageMesh = new THREE.Mesh(geometry, material);
+                
+                // מיקום התמונה מעל המכונה
+                imageMesh.position.set(item.x, item.y, item.z);
+                
+                // סיבוב התמונה לפי סיבוב המכונה
+                imageMesh.rotation.y = item.rotation;
+                
+                // אם צריך להפוך את הצד, סובב ב-180 מעלות סביב ציר Y נוסף
+                if (item.flipSide) {
+                    imageMesh.rotateY(Math.PI);
+                }
+                
+                // הוספת התמונה לסצנה
+                scene.add(imageMesh);
+                console.log(`Image ${index + 1} added successfully`);
+                
+                // אפשרות: הוספת מסגרת לתמונה
+                addFrameToImage(imageMesh, width, height, item.flipSide);
+            },
+            (xhr) => {
+                console.log(`Image ${index + 1} loading: ${(xhr.loaded / xhr.total) * 100}% loaded`);
+            },
+            (error) => {
+                console.error(`Error loading image ${index + 1}:`, error);
+            }
+        );
+    });
+};
+
+const addGameMachinePortals = () => {
+    // מערך של מיקומים המכונות
+    const machinePositions = [
+        { x: -7.34, y: 3, z: 9, rotation: Math.PI * 1.0 },
+        { x: 0.75, y: 3, z: 12.40, rotation: Math.PI },
+        { x: 5.90, y: 3, z: 12.30, rotation: Math.PI * 1.3 },
+        { x: 13.49, y: 3, z: 6.12, rotation: Math.PI * 1.4 },
+        { x: 14.37, y: 3, z: 2.27, rotation: Math.PI * 1.8 },
+        { x: 8.9, y: 3, z: -3.82, rotation: Math.PI * 1.75 }
+    ];
+    
+    // יצירת פורטל קטן לפני כל מכונה
+    machinePositions.forEach((machine, index) => {
+        // חישוב המיקום של הפורטל לפי הסיבוב של המכונה
+        // הפורטל יהיה במרחק 2.0 מטר מהמכונה בכיוון הסיבוב (הגדלה מ-1.5)
+        const portalDistance = 2.0;
+        
+        // חישוב הזווית בהתאם לסיבוב המכונה
+        const angle = machine.rotation;
+        
+        // חישוב מיקום הפורטל - בכיוון הסיבוב של המכונה
+        const portalX = machine.x - Math.sin(angle) * portalDistance;
+        const portalZ = machine.z - Math.cos(angle) * portalDistance;
+        
+        // יצירת פורטל קטן בסגנון דומה לפורטל הראשי אבל קטן יותר
+        createMachinePortalEffect({
+            x: portalX,
+            y: 1.3, // קצת יותר נמוך מהפורטל הראשי
+            z: portalZ
+        }, index + 1); // העברת אינדקס המכונה לפורטל
+    });
+};
+
+// פונקציה ליצירת אפקט פורטל למכונת משחק
+// פונקציה משופרת ליצירת פורטל למכונת משחק עם יותר שקיפות
+// פונקציה משופרת ליצירת פורטל למכונת משחק עם רדיוס גדול יותר
+const createMachinePortalEffect = (position, machineIndex) => {
+    // רדיוס גדול יותר לפורטלים של המכונות
+    const portalRadius = 2.5; // הגדלה מ-1.2 ל-2.5
+    const particleCount = 200; // יותר חלקיקים לפורטל גדול יותר
+    
+    // יצירת גיאומטריה לחלקיקים
+    const particleGeometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(particleCount * 3);
+    const colors = new Float32Array(particleCount * 3);
+    
+    // הגדרת עשן במעגל סביב נקודת הפורטל
+    for (let i = 0; i < particleCount; i++) {
+        // מיקום אקראי בתוך ספירה
+        const angle = Math.random() * Math.PI * 2;
+        const radius = Math.random() * portalRadius;
+        const height = Math.random() * 2.0; // גובה גבוה יותר לחלקיקים
+        
+        // הוספת רנדומיות קטנה למיקום
+        positions[i * 3] = position.x + Math.cos(angle) * radius;
+        positions[i * 3 + 1] = position.y + height;
+        positions[i * 3 + 2] = position.z + Math.sin(angle) * radius;
+        
+        // צבע כחול בהיר עם וריאציות קלות (שונה מהסגול של הפורטל הראשי)
+        colors[i * 3] = 0.1 + Math.random() * 0.2; // אדום
+        colors[i * 3 + 1] = 0.7 + Math.random() * 0.3; // ירוק (יותר)
+        colors[i * 3 + 2] = 0.9 + Math.random() * 0.1; // כחול (מקסימלי)
+    }
+    
+    particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    particleGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    
+    // יצירת מטריאל לחלקיקים - עם שקיפות גבוהה יותר
+    const particleMaterial = new THREE.PointsMaterial({
+        size: 0.2, // גודל חלקיקים גדול יותר
+        transparent: true,
+        opacity: 0.2,
+        vertexColors: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        sizeAttenuation: true
+    });
+    
+    // יצירת המערכת חלקיקים
+    const portalParticles = new THREE.Points(particleGeometry, particleMaterial);
+    scene.add(portalParticles);
+    
+    // הוספת אור נקודתי כחול באזור הפורטל - חזק יותר
+    const portalLight = new THREE.PointLight(0x00BFFF, 0.7, 6); // הגדלת טווח האור
+    portalLight.position.copy(position);
+    portalLight.position.y += 0.5;
+    scene.add(portalLight);
+    
+    // הוספת התמונה למשחק
+    addImageToPortal(position, machineIndex, portalRadius);
+    
+    // יצירת מזהה ייחודי לפורטל כדי שנוכל לזהות אותו בבדיקת התנגשויות
+    portalParticles.userData = {
+        isGamePortal: true,
+        machineIndex: machineIndex,
+        position: position,
+        radius: portalRadius * 0.8 // רדיוס גדול יותר לבדיקת התנגשויות
+    };
+    
+    // הוספה למערך הגלובלי של פורטלים
+    gameMachinePortals.push({
+        particles: portalParticles,
+        light: portalLight,
+        position: position,
+        radius: portalRadius * 1.0, // הגדלת אזור ההתנגשות
+        machineIndex: machineIndex,
+        active: true // פורטל פעיל כברירת מחדל
+    });
+    
+    return portalParticles;
+};
+// פונקציה להוספת תמונה לפורטל
+// פונקציה להוספת תמונה לפורטל - מותאמת לפורטל גדול יותר
+// פונקציה להוספת תמונה לפורטל - מותאמת לתמונות קטנות יותר וקרובות יותר לשחקן
+const addImageToPortal = (position, machineIndex, portalRadius) => {
+    // בחירת התמונה המתאימה לפי מספר המכונה
+    let imagePath;
+    switch(machineIndex) {
+        case 1:
+            imagePath = 'symbols/dave.png';
+            break;
+        case 2:
+            imagePath = 'symbols/pacman.png';
+            break;
+        case 3:
+            imagePath = 'symbols/sonic.png';
+            break;
+        case 4:
+            imagePath = 'symbols/skyroads.png';
+            break;
+        case 5:
+            imagePath = 'symbols/digger.png';
+            break;
+        case 6:
+            imagePath = 'symbols/mario.png';
+            break;
+        default:
+            imagePath = 'symbols/dave.png'; // תמונת ברירת מחדל
+    }
+    
+    // טעינת הטקסטורה מהקובץ
+    const textureLoader = new THREE.TextureLoader();
+    textureLoader.load(
+        imagePath, // נתיב לתמונה הספציפית
+        (texture) => {
+            // יצירת מישור שיציג את התמונה - קטן יותר
+            const imageSize = portalRadius * 0.9; // הקטנה מ-1.4 ל-0.9
+            
+            // בדיקת יחס הרוחב-גובה של התמונה
+            const aspectRatio = texture.image ? texture.image.width / texture.image.height : 1;
+            
+            // יצירת גיאומטריה מתאימה לתמונה
+            const geometry = new THREE.PlaneGeometry(
+                imageSize, 
+                imageSize / aspectRatio
+            );
+            
+            // יצירת מטריאל עם הטקסטורה
+            const material = new THREE.MeshBasicMaterial({
+                map: texture,
+                transparent: true,
+                opacity: 0.8,
+                side: THREE.DoubleSide,
+                depthWrite: false
+            });
+            
+            // הפיכת הטקסטורה של סוניק
+            if (machineIndex === 3) {
+                texture.rotation = Math.PI;
+                texture.center.set(0.5, 0.5);
+                texture.needsUpdate = true;
+            }
+            
+            // יצירת המש
+            const imageMesh = new THREE.Mesh(geometry, material);
+            
+            // מיקום התמונה בתוך הפורטל
+            imageMesh.position.copy(position);
+            
+            // הזזת התמונה קדימה יותר לכיוון השחקן
+            // חישוב הכיוון אל מרכז הסצנה (בערך מיקום השחקן)
+            const centerDirection = new THREE.Vector3(0, 0, 0).sub(position).normalize();
+            
+            // הזזת התמונה בכיוון זה
+            imageMesh.position.add(centerDirection.multiplyScalar(0.5)); // הזזה קדימה ב-0.5 יחידות
+            
+            // הזזה קטנה למעלה
+            imageMesh.position.y += 0.3;
+            
+            // סיבוב התמונה כך שתמיד תפנה אל המצלמה
+            imageMesh.userData.machineIndex = machineIndex;
+            
+            // הוספת אנימציה לתמונה
+            imageMesh.userData.animationType = machineIndex % 3;
+            imageMesh.userData.animationOffset = Math.random() * Math.PI * 2;
+            
+            // הוספת התמונה לסצנה
+            scene.add(imageMesh);
+            
+            // שמירת התמונה במערך הפורטלים לצורך אנימציה
+            if (gameMachinePortals[machineIndex - 1]) {
+                gameMachinePortals[machineIndex - 1].imageMesh = imageMesh;
+            }
+        },
+        undefined,
+        (error) => {
+            console.error(`שגיאה בטעינת התמונה לפורטל ${machineIndex}:`, error);
+        }
+    );
+};
+
+// עדכון פונקציית האנימציה של הפורטלים
+const animateGamePortals = () => {
+    gameMachinePortals.forEach(portal => {
+        if (portal.active) {
+            // אנימציה של החלקיקים
+            if (portal.particles) {
+                const positions = portal.particles.geometry.attributes.position.array;
+                
+                for (let i = 0; i < positions.length; i += 3) {
+                    // תנועה אקראית קלה
+                    positions[i] += (Math.random() - 0.5) * 0.025; // תנועה עדינה יותר
+                    positions[i + 1] += Math.random() * 0.025; // תנועה קלה למעלה
+                    positions[i + 2] += (Math.random() - 0.5) * 0.025; // תנועה עדינה יותר
+                    
+                    // החזר חלקיקים שיצאו חזרה לאזור הפורטל
+                    const dx = positions[i] - portal.position.x;
+                    const dz = positions[i + 2] - portal.position.z;
+                    const distance = Math.sqrt(dx * dx + dz * dz);
+                    
+                    if (distance > portal.radius || positions[i + 1] > portal.position.y + 1.5) {
+                        // אם החלקיק יצא מהגבולות, החזר אותו למיקום חדש בתוך הפורטל
+                        const angle = Math.random() * Math.PI * 2;
+                        const radius = Math.random() * portal.radius * 0.7;
+                        
+                        positions[i] = portal.position.x + Math.cos(angle) * radius;
+                        positions[i + 1] = portal.position.y + Math.random() * 1;
+                        positions[i + 2] = portal.position.z + Math.sin(angle) * radius;
+                    }
+                }
+                
+                portal.particles.geometry.attributes.position.needsUpdate = true;
+            }
+            
+            // אנימציה של אור - שינוי עוצמה קלות
+            if (portal.light) {
+                portal.light.intensity = 0.5 + Math.sin(Date.now() * 0.002) * 0.2; // אור עדין יותר
+            }
+            
+            // אנימציה של התמונה בפורטל
+            if (portal.imageMesh) {
+                // ודא שהתמונה תמיד מופנית למצלמה
+                portal.imageMesh.lookAt(camera.position);
+                
+                // אנימציה נוספת לפי סוג האנימציה
+                const time = Date.now() * 0.001;
+                const offset = portal.imageMesh.userData.animationOffset || 0;
+                
+                switch (portal.imageMesh.userData.animationType) {
+                    case 0: // סיבוב קל
+                        portal.imageMesh.rotation.z = Math.sin(time + offset) * 0.05; // סיבוב עדין יותר
+                        break;
+                    case 1: // תנועה למעלה-למטה
+                        portal.imageMesh.position.y = portal.position.y + 0.1 + Math.sin(time + offset) * 0.15; // תנועה עדינה יותר
+                        break;
+                    case 2: // שינוי גודל קל
+                        const scale = 1 + Math.sin(time + offset) * 0.05; // שינוי גודל עדין יותר
+                        portal.imageMesh.scale.set(scale, scale, scale);
+                        break;
+                }
+                
+                // אפקט ריחוף - שינוי קל באופסיטי
+                if (portal.imageMesh.material) {
+                    portal.imageMesh.material.opacity = 0.6 + Math.sin(time * 2 + offset) * 0.1; // שינויים עדינים יותר
+                }
+            }
+        }
+    });
+};
+// פונקציה לבדיקת התנגשות עם פורטלי המכונות
+// פונקציה לבדיקת התנגשות עם פורטלי המכונות - עם רדיוס בדיקה גדול יותר
+const checkGamePortalCollisions = (position) => {
+    // אם במצב התעלמות מפורטלים, החזר false
+    if (window.ignorePortals) return false;
+    
+    for (const portal of gameMachinePortals) {
+        if (portal.active) {
+            const distanceToPortal = position.distanceTo(new THREE.Vector3(
+                portal.position.x,
+                portal.position.y,
+                portal.position.z
+            ));
+            
+            // הגדלת אזור ההתנגשות - כדי להקל על הכניסה לפורטל
+            if (distanceToPortal < portal.radius * 1.5) { // הכפלת הרדיוס ב-1.5 להגדלת אזור ההתנגשות
+                // כאשר השחקן קרוב לפורטל, פתח את המודאל
+                openGameModal(portal.machineIndex);
+                return true;
+            }
+        }
+    }
+    
+    return false;
+};
+
+// יצירת מודאל למשחק
+const createGameModal = () => {
+    // בדיקה אם המודאל כבר קיים
+    if (document.getElementById('game-modal')) return;
+    
+    // יצירת אלמנט המודאל
+    const modal = document.createElement('div');
+    modal.id = 'game-modal';
+    modal.style.display = 'none';
+    modal.style.position = 'fixed';
+    modal.style.zIndex = '1000';
+    modal.style.left = '0';
+    modal.style.top = '0';
+    modal.style.width = '100%';
+    modal.style.height = '100%';
+    modal.style.overflow = 'hidden';
+    modal.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+    
+    // יצירת תוכן המודאל
+    const modalContent = document.createElement('div');
+    modalContent.style.backgroundColor = '#000';
+    modalContent.style.margin = '5vh auto';
+    modalContent.style.width = '90%';
+    modalContent.style.height = '85vh';
+    modalContent.style.border = '1px solid #888';
+    modalContent.style.borderRadius = '8px';
+    modalContent.style.position = 'relative';
+    
+    // כפתור סגירה
+    const closeButton = document.createElement('span');
+    closeButton.innerHTML = '&times;';
+    closeButton.style.color = '#ffffff';
+    closeButton.style.float = 'right';
+    closeButton.style.fontSize = '28px';
+    closeButton.style.fontWeight = 'bold';
+    closeButton.style.position = 'absolute';
+    closeButton.style.right = '15px';
+    closeButton.style.top = '5px';
+    closeButton.style.cursor = 'pointer';
+    closeButton.style.zIndex = '1001';
+    
+    // אירוע לחיצה על כפתור הסגירה
+    closeButton.addEventListener('click', closeGameModal);
+    
+    // יצירת iframe
+    const gameFrame = document.createElement('iframe');
+    gameFrame.id = 'game-frame';
+    gameFrame.style.width = '100%';
+    gameFrame.style.height = '100%';
+    gameFrame.style.border = 'none';
+    gameFrame.style.borderRadius = '8px';
+    
+    // הוספת האלמנטים לDOM
+    modalContent.appendChild(closeButton);
+    modalContent.appendChild(gameFrame);
+    modal.appendChild(modalContent);
+    document.body.appendChild(modal);
+    
+    // סגירת המודאל בלחיצה מחוץ לתוכן
+    modal.addEventListener('click', (event) => {
+        if (event.target === modal) closeGameModal();
+    });
+    closeButton.addEventListener('click', (e) => {
+    e.stopPropagation();
+    closeGameModal();
+});
+};
+
+// פונקציה משופרת לפתיחת המודאל
+// פונקציה משופרת לפתיחת המודאל עם טיפול במטבעות ושליטה
+const gameSources = {};
+
+// פונקציה משופרת לפתיחת המודאל - גרסה פשוטה
+// פונקציה משופרת לפתיחת המודאל - גרסה פשוטה
+// פונקציה לפתיחת המודאל - עם השהיית אנימציה
+const openGameModal = (machineIndex) => {
+    // בדיקה אם כבר ביקרנו במשחק זה
+    if (visitedGames.includes(machineIndex)) {
+        // יצירת הודעה במקום פתיחת המודאל
+        showGameVisitedMessage(machineIndex);
+        return;
+    }
+    
+    // בדיקה אם יש מספיק מטבעות (לפחות 5)
+    if (playerCoins < 5) {
+        alert('אין מספיק מטבעות! צריך לפחות 5 מטבעות כדי לשחק.');
+        return;
+    }
+    
+    // יצירת המודאל אם הוא לא קיים
+    createGameModal();
+    
+    const modal = document.getElementById('game-modal');
+    const gameFrame = document.getElementById('game-frame');
+    
+    // השהיית האנימציה לחיסכון במשאבים
+    pauseAnimation();
+    
+    // איפוס מצב התנועה
+    movingForward = false;
+    movingBackward = false;
+    if (controls) {
+        controls.moveForward = false;
+        controls.moveBackward = false;
+        controls.enabled = false;
+    }
+    
+    // עצירת ההליכה
+    if (isWalking && walkSound) {
+        walkSound.pause();
+        isWalking = false;
+    }
+    
+    // הסרת הסמן מהמסך
+    document.getElementById('crosshair').style.display = 'none';
+    
+    // בדיקה אם אנחנו פותחים אותה מכונה מחדש
+    if (modal.currentMachine === machineIndex && gameFrame.src && gameFrame.src !== 'about:blank') {
+        // אם זו אותה מכונה וכבר יש תוכן ב-iframe, פשוט נציג את המודאל מחדש
+        console.log(`פתיחה מחדש של מודאל קיים למכונה ${machineIndex}`);
+        modal.style.display = 'block';
+        
+        // מתן פוקוס ל-iframe אוטומטית
+        setTimeout(() => {
+            gameFrame.focus();
+        }, 100);
+        
+        return;
+    }
+    
+    // שמירת המכונה הנוכחית
+    modal.currentMachine = machineIndex;
+    
+    // קביעת מקור ה-iframe לפי סוג המכונה
+    let gameSource = '';
+    switch(machineIndex) {
+        case 1:
+            gameSource = 'games/dave.html?from=modal';
+            break;
+        case 2:
+            gameSource = 'games/pacman.html?from=modal';
+            break;
+        case 3:
+            gameSource = 'games/sonic.html?from=modal';
+            break;
+        case 4:
+            gameSource = 'games/skyroads.html?from=modal';
+            break;
+        case 5:
+            gameSource = 'games/digger.html?from=modal';
+            break;
+        case 6:
+            gameSource = 'games/mario.html?from=modal';
+            break;
+        default:
+            gameSource = 'games/dave.html?from=modal';
+    }
+    
+    // הצגת המודאל
+    modal.style.display = 'block';
+    
+    // טעינת המשחק ב-iframe
+    gameFrame.src = gameSource;
+    
+    // מתן פוקוס ל-iframe אוטומטית לאחר טעינה
+    gameFrame.onload = function() {
+        gameFrame.focus();
+    };
+    
+    // שמירת המקור הנוכחי
+    gameSources[machineIndex] = gameSource;
+    
+    console.log(`מודאל נפתח למכונה ${machineIndex} עם מקור: ${gameSource}`);
+    
+    // הפעלת אירוע פתיחת מודאל
+    document.dispatchEvent(new Event('modalOpened'));
+};
+// פונקציה להצגת הודעה כשמנסים לגשת למשחק שכבר ביקרת בו
+// פונקציה להצגת הודעה כשמנסים לגשת למשחק שכבר ביקרת בו
+// פונקציה להצגת הודעה כשמנסים לגשת למשחק שכבר ביקרת בו
+const showGameVisitedMessage = (machineIndex) => {
+    // יצירת המודאל אם הוא לא קיים
+    createGameModal();
+    
+    const modal = document.getElementById('game-modal');
+    const gameFrame = document.getElementById('game-frame');
+    
+    // קביעת השליטה למצב לא פעיל בעת פתיחת המודאל
+    if (controls) controls.enabled = false;
+    
+    // עצירת ההליכה
+    if (isWalking && walkSound) {
+        walkSound.pause();
+        isWalking = false;
+    }
+    
+    // הסרת הסמן מהמסך
+    document.getElementById('crosshair').style.display = 'none';
+    
+    // קביעת תוכן ה-iframe להיות דף ההודעה
+    modal.style.display = 'block';
+    gameFrame.src = 'games/visited.html';
+    
+    // שמירת המכונה הנוכחית במודאל (כדי לדעת איזה משחק ניסינו לגשת אליו)
+    modal.currentMachine = machineIndex;
+};
+// הוספת אירוע שיחזיר את הפוקוס ל-iframe כשהמשתמש חוזר לחלון
+window.addEventListener('focus', () => {
+    const modal = document.getElementById('game-modal');
+    const gameFrame = document.getElementById('game-frame');
+    
+    if (modal && modal.style.display === 'block' && gameFrame) {
+        setTimeout(() => {
+            gameFrame.focus();
+        }, 100);
+    }
+});
+// פונקציה לסגירת המודאל - גרסה פשוטה
+// פונקציה לסגירת המודאל - עם החזרה למיקום קבוע
+// פונקציה לסגירת המודאל - עם חידוש האנימציה
+// פונקציה לסגירת המודאל - שומרת על המשחק אבל מונעת בעיות
+const closeGameModal = () => {
+    // הדפס למסוף שהמודאל נסגר
+    console.log('סוגר מודאל, משהה בדיקת פורטלים...');
+    
+    // מיד בתחילת הפונקציה, לפני כל דבר אחר
+    window.ignorePortals = true;
+    
+    const modal = document.getElementById('game-modal');
+    
+    if (!modal) return;
+    
+    // שמור את המכונה הנוכחית (לצורך לוג בלבד)
+    if (modal.currentMachine) {
+        console.log(`המודאל הוסתר עבור מכונה ${modal.currentMachine}`);
+    }
+    
+    // הסתרת המודאל במקום ניקוי ה-iframe - שימור מצב המשחק
+    modal.style.display = 'none';
+    
+    // חידוש האנימציה
+    resumeAnimation();
+    
+    // החזרת השחקן למיקום הקבוע
+    camera.position.set(-3.11, 2.20, -3.43);
+    
+    // איפוס משתני התנועה
+    isWalking = false;
+    movingForward = false;
+    movingBackward = false;
+    if (walkSound) walkSound.pause();
+    
+    // וידוא שהמקשים לא "תקועים"
+    if (controls) {
+        controls.moveForward = false;
+        controls.moveBackward = false;
+        controls.moveLeft = false;
+        controls.moveRight = false;
+        controls.update(0);
+    }
+    
+    // פסק זמן קצר לפני החזרת שליטה למשתמש
+    setTimeout(() => {
+        // החזרת השליטה והסמן
+        if (controls) controls.enabled = true;
+        document.getElementById('crosshair').style.display = 'block';
+    }, 100);
+    
+    // הפעל דגל התעלמות מפורטלים למשך זמן ארוך מספיק
+    // כדי למנוע כניסה חוזרת מיידית לאותו פורטל
+    setTimeout(() => {
+        console.log('זמן צינון הסתיים, מחדש בדיקת פורטלים');
+        window.ignorePortals = false;
+    }, 5000); // 5 שניות צינון (זמן ארוך יחסית)
+    
+    // הפעלת אירוע סגירת מודאל לטיפול במוזיקה
+    document.dispatchEvent(new Event('modalClosed'));
+};
+// עדכון dave.html - הוסף קוד זה לקובץ המשחק 
+// (שים בסקריפט הראשי של dave.html)
+/*
+// בדיקה אם המשחק רץ בתוך iframe/מודאל
+const isInModal = window.location.search.includes('from=modal');
+
+// פונקציה לשליחת הודעות להורה (מסגרת האתר הראשית)
+function sendMessageToParent(action, data) {
+    if (isInModal && window.parent) {
+        window.parent.postMessage({
+            type: 'gameEvent',
+            action: action,
+            ...data
+        }, '*');
+    }
+}
+
+// לדוגמה, כשמכניסים מטבע:
+function insertCoin() {
+    // הלוגיקה הרגילה של הוספת מטבע
+    coins++;
+    updateCoinsDisplay();
+    
+    // שלח הודעה להורה
+    sendMessageToParent('coinInserted', { coins: coins });
+}
+
+// גם כשהמשחק נגמר, אפשר להודיע להורה
+function gameOver() {
+    // הלוגיקה הרגילה של סיום משחק
+    
+    // שלח הודעה להורה
+    sendMessageToParent('gameOver', { score: currentScore });
+}
+*/
+
+
+// פונקציה להוספת מסגרת לתמונה - עדכון כדי לתמוך בסיבוב של flipSide
+const addFrameToImage = (imageMesh, width, height, flipSide) => {
+    // יצירת גיאומטריה מעט גדולה יותר מהתמונה
+    const frameWidth = width + 0.1;
+    const frameHeight = height + 0.1;
+    const frameGeometry = new THREE.PlaneGeometry(frameWidth, frameHeight);
+    
+    // חומר למסגרת - אפשר לשנות את הצבע
+    const frameMaterial = new THREE.MeshBasicMaterial({
+        color: 0x111111,  // צבע שחור למסגרת
+        side: THREE.DoubleSide
+    });
+    
+    // יצירת המש של המסגרת
+    const frameMesh = new THREE.Mesh(frameGeometry, frameMaterial);
+    
+    // מיקום המסגרת מעט מאחורי התמונה
+    frameMesh.position.copy(imageMesh.position);
+    
+    // התאמת המיקום של המסגרת לפי הסיבוב של התמונה
+    if (flipSide) {
+        frameMesh.position.z += 0.01; // מעט לפני התמונה אם היא מסובבת
+    } else {
+        frameMesh.position.z -= 0.01; // מעט מאחורי התמונה אם היא לא מסובבת
+    }
+    
+    // העתקת הסיבוב של התמונה
+    frameMesh.rotation.copy(imageMesh.rotation);
+    
+    // הוספת המסגרת לסצנה
+    scene.add(frameMesh);
+};
+        // פונקציית אנימציה
+// משתנים גלובליים לשליטה באנימציה - הוסף בתחילת הקוד הראשי
+let animationActive = true;
+let animationFrameId = null;
+
+// פונקציה מעודכנת לאנימציה
+const animate = () => {
+    // בדיקה אם האנימציה פעילה
+    if (!animationActive) return;
+    
+    // שמירת ה-ID של פריים האנימציה לביטול אם נדרש
+    animationFrameId = requestAnimationFrame(animate);
+    
+    if (isLoaded) {
+        const delta = clock.getDelta();
+        
+        if (controls) {
+            // בדיקה שהמודאל לא פתוח לפני עדכון המצלמה
+            const modalOpen = document.getElementById('game-modal')?.style.display === 'block';
+            
+            if (!modalOpen) {
+                // שמירת המיקום הקודם לפני העדכון
+                const previousPosition = camera.position.clone();
+                
+                // עדכון השליטה
+                controls.update(delta);
+                
+                // שמירת גובה קבוע מעל הרצפה
+                camera.position.y = PLAYER_HEIGHT;
+                
+                // בדיקה אם המיקום החדש הוא בתוך הגבולות
+                if (!isPositionInBounds(camera.position)) {
+                    // אם המיקום החדש הוא מחוץ לגבולות, חזור למיקום הקודם
+                    camera.position.copy(previousPosition);
+                }
+                
+                // בדיקה אם הגענו לפורטל הראשי
+                const atMainPortal = checkCustomLocationPoints(camera.position);
+                
+                // בדיקה אם הגענו לפורטל של מכונת משחק (רק אם לא הגענו לפורטל הראשי)
+                if (!atMainPortal) {
+                    checkGamePortalCollisions(camera.position);
+                }
+                
+                // הצגת המיקום על המסך
+                if (!window.positionDisplay) {
+                    window.positionDisplay = document.createElement('div');
+                    window.positionDisplay.style.position = 'absolute';
+                    window.positionDisplay.style.bottom = '10px';
+                    window.positionDisplay.style.left = '10px';
+                    window.positionDisplay.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+                    window.positionDisplay.style.color = 'white';
+                    window.positionDisplay.style.padding = '5px';
+                    window.positionDisplay.style.fontFamily = 'monospace';
+                    window.positionDisplay.style.fontSize = '14px';
+                    window.positionDisplay.style.borderRadius = '3px';
+                    window.positionDisplay.style.zIndex = '1000';
+                    document.body.appendChild(window.positionDisplay);
+                }
+                window.positionDisplay.textContent = 
+                    `מיקום שחקן: X: ${camera.position.x.toFixed(2)}, Y: ${camera.position.y.toFixed(2)}, Z: ${camera.position.z.toFixed(2)}`;
+            }
+        }
+        
+        // אנימציה לפורטל הראשי
+        animatePortal();
+        
+        // אנימציה לפורטלים של המכונות
+        animateGamePortals();
+    }
+    
+    renderer.render(scene, camera);
+};
+
+// פונקציה להשהיית האנימציה
+const pauseAnimation = () => {
+    animationActive = false;
+    if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+        animationFrameId = null;
+    }
+    console.log('האנימציה הושהתה');
+};
+
+// פונקציה לחידוש האנימציה
+const resumeAnimation = () => {
+    if (!animationActive) {
+        animationActive = true;
+        animate(); // מפעיל מחדש את לולאת האנימציה
+        console.log('האנימציה חודשה');
+    }
+};
+        
+        // הפעלת האתחול כשהדף נטען
+        window.addEventListener('load', init);
+
+        // פונקציה לניגון מוזיקת רקע רנדומלית
+// פונקציה לניגון מוזיקת רקע עם החלפת שירים אוטומטית
+const setupBackgroundMusic = () => {
+    // מערך של שמות קבצי השירים
+    const songs = [
+        'audio/1.mp3',
+        'audio/2.mp3',
+        'audio/3.mp3',
+        'audio/4.mp3'
+    ];
+    
+    let currentSongIndex = 0;
+    let isPlaying = false;
+    
+    // פונקציה להפעלת שיר לפי אינדקס
+    const playSong = (index) => {
+        // ודא שהאינדקס בטווח התקין
+        currentSongIndex = index % songs.length;
+        
+        console.log(`מנגן שיר רקע: ${songs[currentSongIndex]}`);
+        
+        // יצירת אובייקט סאונד עם הספרייה Howler
+        const backgroundMusic = new Howl({
+            src: [songs[currentSongIndex]],
+            volume: 0.5,         // עוצמת שמע בינונית
+            autoplay: true,      // ניגון אוטומטי
+            loop: false,         // ללא לופ לשיר בודד
+            onend: () => {
+                // כשהשיר מסתיים, הפעל את השיר הבא
+                playNextSong();
+            }
+        });
+        
+        // שמירת האובייקט בחלון הגלובלי כדי שנוכל לגשת אליו מכל מקום
+        window.backgroundMusic = backgroundMusic;
+        isPlaying = true;
+        
+        // עדכון אייקון כפתור המוזיקה
+        updateMusicButtonIcon();
+    };
+    
+    // פונקציה להפעלת השיר הבא
+    const playNextSong = () => {
+        // בדיקה שהאובייקט הקודם נעצר ונוקה
+        if (window.backgroundMusic) {
+            window.backgroundMusic.unload();
+        }
+        
+        // הפעלת השיר הבא ברשימה
+        playSong(currentSongIndex + 1);
+    };
+    
+    // פונקציה לעדכון אייקון כפתור המוזיקה
+    const updateMusicButtonIcon = () => {
+        const musicButton = document.getElementById('music-control');
+        if (!musicButton) return;
+        
+        if (window.backgroundMusic && window.backgroundMusic.volume() > 0) {
+            musicButton.innerHTML = '🔈';
+        } else {
+            musicButton.innerHTML = '🔇';
+        }
+    };
+    
+    // הפעלת השיר הראשון
+    playSong(Math.floor(Math.random() * songs.length)); // התחלה בשיר אקראי
+    
+    // הוספת כפתור שליטה במוזיקה
+    addMusicControls();
+    
+    // מאזינים לאירועים של מודאל
+    document.addEventListener('modalOpened', () => {
+        if (window.backgroundMusic) {
+            window.backgroundMusic.volume(0.2); // הנמכת עוצמת השמע
+            updateMusicButtonIcon();
+        }
+    });
+    
+    document.addEventListener('modalClosed', () => {
+        if (window.backgroundMusic) {
+            window.backgroundMusic.volume(0.5); // החזרת עוצמת השמע
+            updateMusicButtonIcon();
+        }
+    });
+    
+    // הוספת פונקציות שליטה גלובליות שיהיו זמינות מכל מקום
+    window.musicControls = {
+        playNextSong,
+        pauseMusic: () => {
+            if (window.backgroundMusic) {
+                window.backgroundMusic.pause();
+                isPlaying = false;
+                updateMusicButtonIcon();
+            }
+        },
+        resumeMusic: () => {
+            if (window.backgroundMusic) {
+                window.backgroundMusic.play();
+                isPlaying = true;
+                updateMusicButtonIcon();
+            }
+        },
+        toggleMusic: () => {
+            if (window.backgroundMusic) {
+                if (isPlaying) {
+                    window.backgroundMusic.pause();
+                    isPlaying = false;
+                } else {
+                    window.backgroundMusic.play();
+                    isPlaying = true;
+                }
+                updateMusicButtonIcon();
+            }
+        }
+    };
+};
+
+// פונקציה מעודכנת להוספת כפתור שליטה במוזיקה
+const addMusicControls = () => {
+    // יצירת כפתור השתקה/ניגון
+    const musicButton = document.createElement('button');
+    musicButton.id = 'music-control';
+    musicButton.innerHTML = '🔈';
+    musicButton.title = 'השתק/הפעל מוזיקה';
+    
+    // עיצוב הכפתור
+    musicButton.style.position = 'fixed';
+    musicButton.style.top = '10px';
+    musicButton.style.left = '10px';
+    musicButton.style.zIndex = '100';
+    musicButton.style.background = 'rgba(0, 0, 0, 0.5)';
+    musicButton.style.color = 'white';
+    musicButton.style.border = 'none';
+    musicButton.style.borderRadius = '50%';
+    musicButton.style.width = '40px';
+    musicButton.style.height = '40px';
+    musicButton.style.fontSize = '20px';
+    musicButton.style.cursor = 'pointer';
+    musicButton.style.display = 'flex';
+    musicButton.style.justifyContent = 'center';
+    musicButton.style.alignItems = 'center';
+    
+    // הוספת אירוע לחיצה
+    musicButton.addEventListener('click', () => {
+        if (window.backgroundMusic) {
+            // בדיקה אם המוזיקה מושתקת
+            if (window.backgroundMusic.volume() > 0) {
+                // השתקה
+                window.backgroundMusic.volume(0);
+                musicButton.innerHTML = '🔇';
+            } else {
+                // הפעלה מחדש
+                window.backgroundMusic.volume(0.5);
+                musicButton.innerHTML = '🔈';
+            }
+        }
+    });
+    
+    // יצירת כפתור "שיר הבא"
+    const nextSongButton = document.createElement('button');
+    nextSongButton.id = 'next-song';
+    nextSongButton.innerHTML = '⏭️';
+    nextSongButton.title = 'שיר הבא';
+    
+    // עיצוב כפתור השיר הבא
+    nextSongButton.style.position = 'fixed';
+    nextSongButton.style.top = '10px';
+    nextSongButton.style.left = '60px';
+    nextSongButton.style.zIndex = '100';
+    nextSongButton.style.background = 'rgba(0, 0, 0, 0.5)';
+    nextSongButton.style.color = 'white';
+    nextSongButton.style.border = 'none';
+    nextSongButton.style.borderRadius = '50%';
+    nextSongButton.style.width = '40px';
+    nextSongButton.style.height = '40px';
+    nextSongButton.style.fontSize = '16px';
+    nextSongButton.style.cursor = 'pointer';
+    nextSongButton.style.display = 'flex';
+    nextSongButton.style.justifyContent = 'center';
+    nextSongButton.style.alignItems = 'center';
+    
+    // הוספת אירוע לחיצה לכפתור השיר הבא
+    nextSongButton.addEventListener('click', () => {
+        if (window.musicControls) {
+            window.musicControls.playNextSong();
+        }
+    });
+    
+    // הוספת הכפתורים לדף
+    document.body.appendChild(musicButton);
+    document.body.appendChild(nextSongButton);
+};
+window.addEventListener('message', function(event) {
+    // לצרכי דיבוג
+    console.log('התקבלה הודעה מה-iframe:', event.data);
+    
+    // בדיקת סוג ההודעה
+    if (event.data.action === 'closeIframe') {
+        // סגירת ה-iframe כשלוחצים על כפתור היציאה
+        closeGameModal(); // פונקציה זו תחזיר את השחקן למיקום הקבוע
+    }
+    else if (event.data.action === 'gameOver') {
+        // הורדת 5 מטבעות בסיום המשחק
+        spendCoin();
+        
+        console.log('המשחק נגמר:', event.data.message);
+        console.log('נשארו', playerCoins, 'מטבעות');
+        
+        // הוספת המשחק הנוכחי למערך המשחקים שביקרת בהם
+        const modal = document.getElementById('game-modal');
+        if (modal && modal.currentMachine && !visitedGames.includes(modal.currentMachine)) {
+            visitedGames.push(modal.currentMachine);
+            console.log('משחקים שביקרת בהם:', visitedGames);
+        }
+    }
+});
+
+// פונקציה להצגת התראה
+const showNotification = (message) => {
+    const notification = document.createElement('div');
+    notification.textContent = message;
+    notification.style.position = 'fixed';
+    notification.style.bottom = '20px';
+    notification.style.right = '20px';
+    notification.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+    notification.style.color = 'white';
+    notification.style.padding = '10px 20px';
+    notification.style.borderRadius = '5px';
+    notification.style.zIndex = '1000';
+    notification.style.direction = 'rtl';
+    notification.style.fontFamily = 'Arial, sans-serif';
+    
+    document.body.appendChild(notification);
+    
+    // הסרת ההתראה אחרי 3 שניות
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        notification.style.transition = 'opacity 0.5s';
+        setTimeout(() => {
+            notification.remove();
+        }, 500);
+    }, 3000);
+};
+
+const isPositionInBounds = (position) => {
+    return (
+        position.x >= WORLD_BOUNDS.minX &&
+        position.x <= WORLD_BOUNDS.maxX &&
+        position.z >= WORLD_BOUNDS.minZ &&
+        position.z <= WORLD_BOUNDS.maxZ
+    );
+};
+    </script>
+</body>
+</html>

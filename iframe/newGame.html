@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Oneline</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+        
+        #game-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            overflow: hidden; /* חשוב: מסתיר את התוכן העודף */
+        }
+
+        iframe {
+            width: 100%;
+            height: 105%; /* גבוה יותר מהמיכל */
+            border: none;
+            position: absolute;
+            top: -5%; /* או שימוש ב-transform: translateY(-5%); */
+            left: 0;
+        }
+        
+        #loading-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #2a1a3a;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            z-index: 10;
+        }
+        
+        .spinner {
+            border: 16px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 16px solid #9c3fd4;
+            width: 120px;
+            height: 120px;
+            animation: spin 2s linear infinite;
+            margin-bottom: 30px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .fallback-message {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .game-button {
+            margin-top: 20px;
+            padding: 15px 30px;
+            background-color: #9c3fd4;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 18px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .game-button:hover {
+            background-color: #8a2be2;
+        }
+        
+
+        
+        /* סגנון משופר למלבן במרכז המסך */
+        #center-rectangle {
+            position: fixed; /* שינוי מ-absolute ל-fixed */
+            top: 50%; /* מרכוז אנכי */
+            left: 50%;
+            transform: translate(-50%, -50%); /* מרכוז מושלם */
+            width: 90%;
+            max-width: 600px; /* רוחב מקסימלי */
+            background-color: #5a2d82; 
+            z-index: 100;
+            border-radius: 20px; /* קצוות מעוגלים יותר */
+            box-shadow: 0 0 40px rgba(156, 63, 212, 0.8), 0 0 15px rgba(0, 0, 0, 0.6); /* צל משופר */
+            padding: 30px;
+            color: white;
+            text-align: center;
+            direction: rtl;
+            border: 4px solid #9c3fd4; /* גבול סגול בהיר */
+            font-size: 20px; /* טקסט גדול יותר */
+            animation: popIn 0.5s ease-out forwards;
+        }
+        
+        /* סגנון למיכל ה-GIF */
+        .tutorial-gif-container {
+            margin: 0 auto 20px;
+            width: 85%;
+            max-width: 320px;
+            border-radius: 15px;
+            overflow: hidden;
+            border: 3px solid #ffcc00;
+            box-shadow: 0 0 20px rgba(255, 204, 0, 0.5);
+        }
+        
+        /* סגנון לתמונת ה-GIF */
+        .tutorial-gif {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        
+        /* עיצוב משופר לכותרת */
+        .instructions-title {
+            font-size: 28px;
+            font-weight: bold;
+            color: #ffff00;
+            text-shadow: 0 0 10px rgba(255, 255, 0, 0.5);
+            margin-bottom: 20px;
+        }
+        
+        /* אנימציה להופעת המלבן */
+        @keyframes popIn {
+            0% { transform: translate(-50%, -40%); opacity: 0; }
+            100% { transform: translate(-50%, -50%); opacity: 1; }
+        }
+
+        @keyframes fadeOut {
+            0% { opacity: 1; transform: translate(-50%, -50%); }
+            100% { opacity: 0; transform: translate(-50%, -60%); }
+        }
+        
+        .step-instructions {
+            margin-top: 20px;
+            padding-top: 0; /* הורדנו את הרווח העליון */
+        }
+
+        .step {
+            font-size: 22px; /* גודל גופן גדול יותר */
+            font-weight: bold;
+            margin: 15px 0; /* רווח גדול יותר בין השורות */
+            text-align: center; /* ממורכז במקום ימני */
+            padding: 12px 20px; /* ריפוד גדול יותר */
+            background-color: rgba(255, 255, 255, 0.15);
+            border-radius: 15px;
+            box-shadow: 0 3px 5px rgba(0, 0, 0, 0.2); /* צל קל */
+        }
+
+        /* כפתור חדש "הבנתי בואו נתחיל" */
+        .start-button {
+            display: block;
+            margin: 30px auto 10px;
+            padding: 15px 40px;
+            font-size: 24px;
+            font-weight: bold;
+            background: linear-gradient(to bottom, #ff9500, #ff5e00);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 6px 0 #c04000, 0 10px 20px rgba(0,0,0,0.3);
+            transition: transform 0.1s, box-shadow 0.1s;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .start-button:before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            animation: shine 2s infinite;
+        }
+        
+        @keyframes shine {
+            0% { left: -100%; }
+            20% { left: 100%; }
+            100% { left: 100%; }
+        }
+        
+        .start-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 9px 0 #c04000, 0 15px 25px rgba(0,0,0,0.3);
+        }
+        
+        .start-button:active {
+            transform: translateY(3px);
+            box-shadow: 0 3px 0 #c04000, 0 5px 10px rgba(0,0,0,0.3);
+        }
+        
+        /* סגנון לשעון */
+        #timer-section {
+            position: absolute;
+            top: 40px;
+            right: 60px;
+            background-color: rgba(0, 0, 0, 0.8);
+            border: 2px solid #9c3fd4;
+            padding: 10px;
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            z-index: 100;
+            text-align: center;
+            box-shadow: 0 0 15px rgba(156, 63, 212, 0.4);
+            font-family: 'Arial', sans-serif;
+        }
+        
+        #timer {
+            font-size: 1.8em;
+            color: white;
+            font-weight: bold;
+            text-shadow: 0 0 5px rgba(156, 63, 212, 0.7);
+            margin-top: 5px;
+        }
+        
+        /* סגנון למסך סיום המשחק */
+        #game-over {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 200;
+            display: none;
+            color: white;
+        }
+        
+        #game-over h2 {
+            font-size: 3em;
+            color: #ff0000;
+            margin-bottom: 30px;
+            text-shadow: 0 0 15px rgba(255, 0, 0, 0.5);
+            animation: pulse-red 2s infinite alternate;
+        }
+        
+        @keyframes pulse-red {
+            0% { text-shadow: 0 0 15px rgba(255, 0, 0, 0.5); }
+            100% { text-shadow: 0 0 25px rgba(255, 0, 0, 0.8); }
+        }
+        
+        #game-over p {
+            font-size: 1.5em;
+            color: #ffffff;
+            margin-bottom: 30px;
+            text-align: center;
+            max-width: 80%;
+            line-height: 1.5;
+        }
+        
+        #restart-btn {
+            background: linear-gradient(to bottom, #9c3fd4 0%, #7030a0 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-family: 'Arial', sans-serif;
+            font-weight: bold;
+            font-size: 1.2em;
+            cursor: pointer;
+            border-radius: 10px;
+            box-shadow: 0 5px 0 #5a2d82, 0 6px 10px rgba(0,0,0,0.5);
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+        
+        #restart-btn:hover {
+            background: linear-gradient(to bottom, #a64fe0 0%, #8040b0 100%);
+        }
+        
+        #restart-btn:active {
+            transform: translateY(5px);
+            box-shadow: 0 0 0 #5a2d82, 0 1px 5px rgba(0,0,0,0.5);
+        }
+        
+        /* אנימציה למסך סיום */
+        @keyframes gameOverFadeIn {
+            0% { opacity: 0; }
+            100% { opacity: 1; }
+        }
+        
+        /* סגנון חדש למסגרת המשחק עם מדיה קוורי */
+        #game-frame {
+            width: 100%;
+            height: 100%;
+            border: none;
+            position: absolute;
+            left: 0;
+            transition: transform 0.3s ease, top 0.3s ease;
+            transform-origin: center top;
+            top: -450px;
+            transform: scale(1.5);
+        }
+
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <iframe id="game-frame"
+        src="https://wordleunlimited.io/one-line-game"
+        frameborder="0"
+        scrolling="no"
+        allowfullscreen
+        allow="autoplay; fullscreen">
+        </iframe>
+   
+        
+        <!-- המלבן במרכז המסך - משופר -->
+        <div id="center-rectangle">
+            <h2 class="instructions-title">🎮 משחק קו אחד 🎮</h2>
+            
+            <!-- הוספת תמונת ההדגמה (GIF) -->
+            <div class="tutorial-gif-container">
+                <img src="tut.gif" alt="הדגמת המשחק" class="tutorial-gif" />
+            </div>
+            
+            <div class="step-instructions">
+                <p class="step">👉 ציירו קו כדי להציל את הדמות מהסכנות! 🎯</p>
+                <p class="step">👉 גררו את העכבר כדי לצייר קו שיגן על הדמות למשך 3 שניות! 🕒</p>
+                <p class="step">👉 נסו להגיע לשלב הגבוה ביותר תוך 2 דקות! ⏱️</p>
+            </div>
+            
+            <!-- כפתור "הבנתי בואו נתחיל" -->
+            <button class="start-button" id="start-button">הבנתי בואו נתחיל!</button>
+        </div>
+        
+        <!-- שעון -->
+        <div id="timer-section">
+            <div>זמן נותר</div>
+            <div id="timer">2:00</div>
+        </div>
+        
+        <!-- מסך סיום המשחק -->
+        <div id="game-over">
+            <h2>נגמר הזמן!</h2>
+            <p>זה הזמן לחזור למעבדת המחשבים</p>
+            <button id="restart-btn">צאו למשחקיה</button>
+        </div>
+        
+        <div id="loading-screen">
+            <div class="spinner"></div>
+            <h2>טוען את המשחק...</h2>
+            <p>Oneline</p>
+            
+            <div class="fallback-message" id="fallback-message">
+                <h3>נראה שיש בעיה בטעינת המשחק</h3>
+                <p>לחץ על הכפתור למטה כדי לשחק בחלון חדש</p>
+                <button class="game-button" onclick="window.open('https://www.crazygames.com/game/oneline', '_blank')">
+                    שחק עכשיו
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // משתנים גלובליים
+    const gameFrame = document.getElementById('game-frame');
+    const loadingScreen = document.getElementById('loading-screen');
+    const fallbackMessage = document.getElementById('fallback-message');
+    const centerRectangle = document.getElementById('center-rectangle');
+    const startButton = document.getElementById('start-button');
+    const timerSection = document.getElementById('timer-section');
+    const timerDisplay = document.getElementById('timer');
+    const gameOverScreen = document.getElementById('game-over');
+    const restartBtn = document.getElementById('restart-btn');
+    
+    // משתנה לסטטוס הטיימר
+    let timerStarted = false;
+
+    // משתנים לטיימר
+    let gameTimer;
+    let timeLeft = 120; // 2 דקות בשניות
+
+    // הסתרת מסך הטעינה לאחר שהמשחק נטען
+    let loadTimeout = setTimeout(function() {
+        // אם המשחק לא נטען תוך 10 שניות, הצג הודעת גיבוי
+        fallbackMessage.style.display = 'block';
+        document.querySelector('.spinner').style.display = 'none';
+        document.querySelector('#loading-screen h2').style.display = 'none';
+    }, 10000);
+
+    // פונקציה להתחלת הטיימר בלחיצה ראשונה
+    function startOnFirstClick(event) {
+        // אם הלחיצה הייתה על כפתור ההתחלה, לא להתחיל את הטיימר כאן
+        if (event && event.target && event.target === startButton) {
+            return;
+        }
+        
+        if (!timerStarted) {
+            console.log("טיימר מתחיל!");
+            timerStarted = true;
+            startTimer();
+        }
+    }
+
+    // האזנה ללחיצה על המסמך כולו - אבל רק אחרי שהמלבן נסגר
+    document.addEventListener('click', function(event) {
+        // בדוק אם המלבן מוסתר וזו לא לחיצה על המלבן עצמו
+        if (centerRectangle.style.display === 'none') {
+            startOnFirstClick(event);
+        }
+    });
+
+    // האזנה ללחיצה על האייפריים באמצעות הודעת postMessage
+    gameFrame.onload = function() {
+        // המשחק נטען בהצלחה
+        clearTimeout(loadTimeout);
+        loadingScreen.style.display = 'none';
+        
+        try {
+            // ניסיון להוסיף קוד JavaScript לאייפריים כדי שישלח הודעה בלחיצה
+            gameFrame.contentWindow.postMessage('addClickListener', '*');
+        } catch (e) {
+            console.error("לא ניתן לגשת לתוכן האייפריים:", e);
+        }
+    };
+
+    gameFrame.onerror = function() {
+        // שגיאה בטעינת המשחק
+        clearTimeout(loadTimeout);
+        fallbackMessage.style.display = 'block';
+        document.querySelector('.spinner').style.display = 'none';
+        document.querySelector('#loading-screen h2').style.display = 'none';
+    };
+
+    // פונקציית הטיימר
+    function startTimer() {
+        console.log("פונקציית הטיימר הופעלה");
+        
+        // אם כבר קיים טיימר פעיל, לא מתחילים חדש
+        if (gameTimer) {
+            return;
+        }
+        
+        updateTimerDisplay();
+        
+        gameTimer = setInterval(function() {
+            timeLeft--;
+            updateTimerDisplay();
+            
+            // הוסף אפקט הבהוב כשהזמן אוזל
+            if (timeLeft <= 30) {
+                timerSection.style.border = '2px solid #ff0000';
+                timerDisplay.style.color = '#ff0000';
+                timerSection.style.animation = "pulse-red 0.8s infinite alternate";
+            }
+            
+            if (timeLeft <= 0) {
+                clearInterval(gameTimer);
+                endGame();
+            }
+        }, 1000);
+    }
+
+    // עדכון תצוגת הטיימר
+    function updateTimerDisplay() {
+        const minutes = Math.floor(timeLeft / 60);
+        const seconds = timeLeft % 60;
+        timerDisplay.textContent = minutes + ':' + (seconds < 10 ? '0' : '') + seconds;
+    }
+
+    // פונקציית סיום המשחק
+    function endGame() {
+        gameOverScreen.style.display = 'flex';
+        gameOverScreen.style.animation = 'gameOverFadeIn 0.5s forwards';
+        
+        // שליחת הודעה לחלון האב שהזמן נגמר
+        if (window.parent) {
+            window.parent.postMessage({ action: 'gameOver', game: 'oneline', message: 'זה הזמן לעבור למשחק אחר' }, '*');
+        }
+    }
+
+    // האזנה להודעות מהמשחק והחלון האב
+    window.addEventListener('message', function(event) {
+        if (event.data === 'game-loaded') {
+            loadingScreen.style.display = 'none';
+            clearTimeout(loadTimeout);
+        }
+        
+        // קבלת הודעה מהאייפריים שלחצו עליו
+        if (event.data === 'iframe-clicked') {
+            startOnFirstClick();
+        }
+        
+        // לטיפול בהודעות נוספות מהחלון האב
+        if (typeof event.data === 'object') {
+            if (event.data.action === 'pause') {
+                // להשהות את המשחק
+                if (gameTimer) {
+                    clearInterval(gameTimer);
+                }
+            }
+        }
+    });
+
+    // שליחת הודעה לחלון האב כאשר המשתמש סוגר את העמוד
+    window.addEventListener('beforeunload', function() {
+        if (window.parent) {
+            window.parent.postMessage('closeModal', '*');
+        }
+    });
+
+    // קוד נוסף לטיפול בסגירת המשחק באמצעות מקש Escape
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            if (window.parent) {
+                window.parent.postMessage('closeModal', '*');
+            }
+        }
+    });
+
+    // התאמת המסכה התחתונה
+
+
+    // פונקציה להעלמת המלבן בלחיצה על כפתור ההתחלה
+    function setupStartButton() {
+    startButton.addEventListener('click', function(event) {
+        // אנימציית סגירה
+        centerRectangle.style.animation = 'fadeOut 0.3s forwards';
+        
+        // הסתרת המלבן לאחר סיום האנימציה
+        setTimeout(function() {
+            centerRectangle.style.animation = '';
+            centerRectangle.style.display = 'none';
+
+            // מתחיל את הטיימר אחרי שהמלבן נסגר
+            timerStarted = true;
+            startTimer();
+        }, 300);
+        
+        // מניעת בועה של האירוע לאלמנט האב
+        event.stopPropagation();
+    });
+}
+
+
+    // טיפול בכפתור ה"צאו למשחקיה"
+    restartBtn.addEventListener('click', function() {
+        // שליחת הודעה לחלון האב לסגירת ה-iframe
+        if (window.parent) {
+            window.parent.postMessage({ action: 'closeIframe', game: 'oneline' }, '*');
+        }
+    });
+
+    // הוספת שכבה שקופה מעל האייפריים לתפיסת לחיצות (אופציה נוספת)
+    function addTransparentOverlay() {
+        const overlay = document.createElement('div');
+        overlay.style.cssText = 'position:absolute; top:0; left:0; width:100%; height:100%; z-index:50; cursor:pointer;';
+        overlay.style.pointerEvents = 'auto';
+        document.getElementById('game-container').appendChild(overlay);
+        
+        overlay.addEventListener('click', function(event) {
+            // רק אם המלבן כבר לא מוצג
+            if (centerRectangle.style.display === 'none') {
+                startOnFirstClick(event);
+                
+                // אם הטיימר התחיל, הסר את השכבה השקופה כדי לאפשר אינטראקציה עם המשחק
+                if (timerStarted) {
+                    this.style.pointerEvents = 'none';
+                }
+            }
+        });
+    }
+
+    // הפעלת פונקציות בעת טעינת העמוד
+    window.addEventListener('DOMContentLoaded', function() {
+        setupStartButton();
+        addTransparentOverlay();
+        console.log("DOMContentLoaded: פונקציות הופעלו בהצלחה");
+    });
+
+    window.addEventListener('resize', function() {
+        console.log("Resize event: המסכה הותאמה");
+    });
+    </script>
+</body>
+</html>

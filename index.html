@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Karantina:wght@300;400;700&family=Noto+Sans+Hebrew:wght@100..900&family=Rubik+Bubbles&family=Rubik+Iso&display=swap" rel="stylesheet">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>מסע בזמן אל משחקי העבר</title>
+    <style>
+        :root {
+            --neon-text-color: #f40;
+            --neon-border-color: #08f;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Noto Sans Hebrew', sans-serif;
+            background-color: #000;
+            color: #fff;
+            overflow: hidden;
+            font-size: 1.2rem;
+        }
+        
+        /* מסך פתיחה - עם סרטון הרקע */
+        #welcomeScreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+        
+        #welcomeVideo {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: -1;
+        }
+        
+        #welcomeScreen::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            z-index: 0;
+        }
+        
+        .welcome-title {
+            font-family: 'Rubik Bubbles', cursive;
+            font-size: 70px;
+            text-align: center;
+            color: var(--neon-text-color);
+            text-shadow: 
+                0 0 5px #fff, 
+                0 0 10px #fff, 
+                0 0 15px #fff, 
+                0 0 20px var(--neon-text-color), 
+                0 0 35px var(--neon-text-color), 
+                0 0 40px var(--neon-text-color);
+            animation: flicker 1.5s infinite alternate;
+            position: relative;
+            z-index: 1;
+            margin-bottom: 50px; /* הגדלת המרווח */
+            padding: 0 20px;
+        }
+        
+        .button-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            z-index: 1;
+        }
+        
+        .ready-button {
+            background-color: #ff0000;
+            color: white;
+            border: none;
+            padding: 20px 40px;
+            font-size: 30px;
+            font-family: 'Rubik Bubbles', cursive;
+            cursor: pointer;
+            position: relative;
+            z-index: 1;
+            box-shadow: 
+                0 0 5px #f00,
+                0 0 10px #f00,
+                0 0 15px #f00;
+            border-radius: 8px;
+            animation: pulse 1.5s infinite;
+            width: 300px;
+            text-align: center;
+        }
+        
+        .levels-button {
+            background-color: #0088ff;
+            color: white;
+            border: none;
+            padding: 18px 40px;
+            font-size: 26px;
+            font-family: 'Rubik Bubbles', cursive;
+            cursor: pointer;
+            position: relative;
+            z-index: 1;
+            box-shadow: 
+                0 0 5px #08f,
+                0 0 10px #08f,
+                0 0 15px #08f;
+            border-radius: 8px;
+            animation: pulse-blue 1.5s infinite;
+            width: 300px;
+            text-align: center;
+        }
+        
+        .ready-button:hover, .levels-button:hover {
+            transform: scale(1.05);
+        }
+
+        /* מודל דילוג לשלבים */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .modal-content {
+            background-color: #000;
+            max-width: 500px;
+            width: 90%;
+            padding: 30px;
+            border: 6px solid var(--neon-border-color);
+            border-radius: 15px;
+            box-shadow: 
+                0 0 5px #fff,
+                0 0 10px #fff,
+                0 0 15px var(--neon-border-color),
+                0 0 20px var(--neon-border-color),
+                inset 0 0 5px #fff,
+                inset 0 0 10px var(--neon-border-color);
+            position: relative;
+        }
+        
+        .modal-title {
+            font-family: 'Rubik Bubbles', cursive;
+            font-size: 36px;
+            text-align: center;
+            margin-bottom: 30px;
+            color: var(--neon-text-color);
+            text-shadow: 
+                0 0 5px #fff, 
+                0 0 10px #fff, 
+                0 0 15px #fff, 
+                0 0 20px var(--neon-text-color), 
+                0 0 35px var(--neon-text-color), 
+                0 0 40px var(--neon-text-color);
+        }
+        
+        .level-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .level-button {
+            background-color: rgba(0, 0, 0, 0.7);
+            color: #0f0;
+            padding: 15px 20px;
+            font-size: 22px;
+            font-family: 'Noto Sans Hebrew', sans-serif;
+            font-weight: bold;
+            border: 2px solid #0f0;
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: center;
+            text-shadow: 0 0 5px #0f0;
+            box-shadow: 0 0 5px #0f0;
+            transition: all 0.3s ease;
+        }
+        
+        .level-button:hover {
+            background-color: rgba(0, 255, 0, 0.2);
+            transform: translateX(-5px);
+        }
+        
+        .back-button {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: transparent;
+            border: none;
+            color: #fff;
+            font-size: 40px;
+            cursor: pointer;
+            text-shadow: 0 0 5px #fff;
+            z-index: 10;
+        }
+        
+        /* מסך תוכן ראשי */
+        #mainContent {
+            display: none; /* מוסתר בהתחלה */
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            overflow-y: auto;
+        }
+        
+        .video-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+        }
+        
+        .video-container video {
+            min-width: 100%;
+            min-height: 100%;
+            object-fit: cover;
+            opacity: 0.5; /* הורדת האטימות ל-50% */
+        }
+        
+        .content {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px 30px; /* הקטנתי את הריפוד העליון */
+            position: relative;
+            z-index: 2;
+            padding-top: 40px; /* הקטנתי את הריפוד העליון מ-80px ל-40px */
+        }
+        
+        h1 {
+            font-family: 'Rubik Bubbles', cursive;
+            font-size: 64px;
+            text-align: center;
+            margin-bottom: 30px; /* הקטנתי את השוליים התחתונים */
+            color: var(--neon-text-color);
+            text-shadow: 
+                0 0 5px #fff, 
+                0 0 10px #fff, 
+                0 0 15px #fff, 
+                0 0 20px var(--neon-text-color), 
+                0 0 35px var(--neon-text-color), 
+                0 0 40px var(--neon-text-color);
+            animation: flicker 1.5s infinite alternate;
+        }
+        
+        .arcade-box {
+            border: 6px solid var(--neon-border-color);
+            border-radius: 15px;
+            padding: 30px 40px; /* הקטנתי את הריפוד העליון מ-40px ל-30px */
+            margin-bottom: 30px;
+            text-shadow: 0 0 5px var(--neon-border-color);
+            box-shadow: 
+                0 0 5px #fff,
+                0 0 10px #fff,
+                0 0 15px var(--neon-border-color),
+                0 0 20px var(--neon-border-color),
+                inset 0 0 5px #fff,
+                inset 0 0 10px var(--neon-border-color);
+            background-color: rgba(0, 0, 0, 0.7);
+            min-height: 500px; /* גובה מינימלי למארז הטקסט */
+        }
+        
+        .intro {
+            font-size: 22px;
+            line-height: 1.6;
+            margin-bottom: 20px; /* הקטנתי את השוליים התחתונים */
+            text-align: center;
+            min-height: 270px; /* הקטנתי מעט את הגובה המינימלי */
+        }
+        
+        .intro p {
+            margin-bottom: 20px;
+        }
+        
+        /* עיצוב תיבת סימון הסכמה */
+        .checkbox-container {
+            text-align: center;
+            margin: 25px 0;
+            font-size: 20px;
+        }
+        
+        .consent-label {
+            display: inline-flex;
+            align-items: center;
+            cursor: pointer;
+            padding: 10px 15px;
+            background-color: rgba(0, 255, 0, 0.1);
+            border: 2px solid #0f0;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+        }
+        
+        .consent-label:hover {
+            background-color: rgba(0, 255, 0, 0.2);
+        }
+        
+        .consent-label input {
+            margin-left: 10px;
+            width: 22px;
+            height: 22px;
+            cursor: pointer;
+        }
+        
+        /* כפתור מושבת */
+        .start-button.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            box-shadow: none;
+            animation: none;
+        }
+        
+        .start-button.disabled:hover {
+            transform: none;
+        }
+        
+        /* סגנון לטקסט מכונת הכתיבה */
+        .typewriter-text {
+            display: inline-block;
+            overflow: hidden;
+            white-space: normal;
+            margin: 0 0 20px 0; /* הוספת מרווח תחתון בין פסקאות */
+            letter-spacing: 0.05em;
+            text-align: right; /* יישור לימין */
+            direction: rtl; /* כיוון טקסט מימין לשמאל */
+            width: 100%; /* רוחב מלא */
+            position: relative;
+            font-size: 24px; /* הגדלת גודל הגופן */
+            line-height: 1.8; /* הרחבת מרווח בין שורות */
+        }
+        
+        /* ביטול האנימציה של typing כי היא לא עובדת טוב עם עברית */
+        .typewriter-text-char {
+            opacity: 0;
+            transition: opacity 0.05s ease;
+        }
+        
+        .rules {
+            margin-top: 40px;
+        }
+        
+        .rules h2 {
+            font-family: 'Rubik Iso', system-ui;
+            color: #0f0;
+            margin-bottom: 30px;
+            text-shadow: 0 0 5px #0f0;
+            font-size: 32px;
+            text-align: center;
+        }
+        
+        .single-instruction {
+            text-align: center;
+            font-size: 24px;
+            margin: 20px 0;
+            padding: 15px;
+            border: 2px solid #0f0;
+            border-radius: 10px;
+            background-color: rgba(0, 255, 0, 0.1);
+            color: #fff;
+            text-shadow: 0 0 5px #0f0;
+        }
+        
+        .start-button {
+            display: block;
+            width: 280px;
+            margin: 50px auto 0;
+            padding: 20px 30px;
+            font-family: 'Rubik Bubbles', cursive;
+            background-color: #f00;
+            color: #fff;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            text-align: center;
+            text-decoration: none;
+            border-radius: 8px;
+            box-shadow: 
+                0 0 5px #f00,
+                0 0 10px #f00,
+                0 0 15px #f00;
+        }
+        
+        .start-button:hover {
+            transform: scale(1.05);
+            animation: pulse 1s infinite;
+        }
+        
+        /* אנימציות */
+        @keyframes flicker {
+            0%, 18%, 22%, 25%, 53%, 57%, 100% {
+                text-shadow: 
+                    0 0 5px #fff, 
+                    0 0 10px #fff, 
+                    0 0 15px #fff, 
+                    0 0 20px var(--neon-text-color), 
+                    0 0 35px var(--neon-text-color), 
+                    0 0 40px var(--neon-text-color);
+            }
+            20%, 24%, 55% {
+                text-shadow: none;
+            }
+        }
+        
+        @keyframes pulse {
+            0% {
+                box-shadow: 
+                    0 0 5px #f00,
+                    0 0 10px #f00,
+                    0 0 15px #f00;
+            }
+            50% {
+                box-shadow: 
+                    0 0 10px #f00,
+                    0 0 20px #f00,
+                    0 0 30px #f00;
+            }
+            100% {
+                box-shadow: 
+                    0 0 5px #f00,
+                    0 0 10px #f00,
+                    0 0 15px #f00;
+            }
+        }
+        
+        @keyframes pulse-blue {
+            0% {
+                box-shadow: 
+                    0 0 5px #08f,
+                    0 0 10px #08f,
+                    0 0 15px #08f;
+            }
+            50% {
+                box-shadow: 
+                    0 0 10px #08f,
+                    0 0 20px #08f,
+                    0 0 30px #08f;
+            }
+            100% {
+                box-shadow: 
+                    0 0 5px #08f,
+                    0 0 10px #08f,
+                    0 0 15px #08f;
+            }
+        }
+        
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; display: none; }
+        }
+        
+        /* מסכים קטנים */
+        @media (max-width: 768px) {
+            .welcome-title, h1 {
+                font-size: 40px;
+            }
+            
+            .ready-button, .levels-button {
+                font-size: 20px;
+                padding: 15px 20px;
+                width: 250px;
+            }
+            
+            .modal-title {
+                font-size: 28px;
+            }
+            
+            .level-button {
+                font-size: 18px;
+                padding: 12px 15px;
+            }
+            
+            .intro {
+                font-size: 18px;
+            }
+            
+            .rules h2 {
+                font-size: 26px;
+            }
+            
+            .single-instruction {
+                font-size: 20px;
+            }
+            
+            .start-button {
+                width: 220px;
+                font-size: 20px;
+            }
+            
+            .check-updates-btn {
+                bottom: 10px !important;
+                right: 10px !important;
+                padding: 12px 20px !important;
+                font-size: 14px !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- מסך פתיחה -->
+    <div id="welcomeScreen">
+        <video autoplay muted loop id="welcomeVideo">
+            <source src="vid/loop.mp4" type="video/mp4">
+            הדפדפן שלך לא תומך בסרטון רקע.
+        </video>
+        <h1 class="welcome-title">מסע בזמן אל משחקי העבר</h1>
+        <div class="button-container">
+            <button class="ready-button" id="readyButton">התחילו משחק חדש</button>
+            <button class="levels-button" id="levelsButton">דילוג לשלבים</button>
+        </div>
+    </div>
+    <audio id="welcomeSound" preload="auto">
+        <source src="audio/com/welcome.wav" type="audio/wav">
+    </audio>
+    
+    <!-- המודל של דילוג לשלבים -->
+    <div id="levelsModal" class="modal">
+        <div class="modal-content">
+            <button class="back-button" id="backButton">←</button>
+            <h2 class="modal-title">בחרו שלב</h2>
+            <div class="level-list">
+                <button class="level-button" data-href="tutorial.html">מגרש האימונים</button>
+                <button class="level-button" data-href="start.html">הפארק</button>
+                <button class="level-button" data-href="tunnel.html">מנהרת הזמן</button>
+                <button class="level-button" data-href="enter.html">הכניסה לארקייד</button>
+                <button class="level-button" data-href="games.html">הארקייד</button>
+                <button class="level-button" data-href="future.html">בחזרה להווה</button>
+                <button class="level-button" data-href="computers.html">חומרת המחשב וסיכום</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- מסך תוכן ראשי -->
+    <div id="mainContent">
+        <div class="video-container">
+            <video autoplay muted loop id="background-video">
+                <source src="vid/games.mp4" type="video/mp4">
+                הדפדפן שלך לא תומך בסרטון רקע.
+            </video>
+        </div>
+        
+        <div class="content">
+            <h1>מסע בזמן אל משחקי העבר</h1>
+            
+            <div class="arcade-box">
+                <div id="typewriter-container" class="intro">
+                    <!-- הטקסט יופיע כאן באמצעות אפקט מכונת כתיבה -->
+                </div>
+                
+                <!-- הסרתי את ה-spacer והעליתי את תיבת הסימון למעלה -->
+                <div class="checkbox-container" style="display: none;" style="margin-top: -20px; margin-bottom: 40px;">
+                    <label class="consent-label">
+                        <input type="checkbox" id="consentCheckbox">
+                        <span>קראתי והבנתי ואני מוכן לפעילות</span>
+                    </label>
+                </div>
+                
+                <a href="#" class="start-button" id="startButton" style="display: none;">התחל משחק</a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- טעינת קובץ המעדכן -->
+    <script src="updater.js"></script>
+    
+    <script>
+        // Background music setup
+        const bgMusic = new Audio('audio/blinding.mp3');
+        bgMusic.loop = true;
+        bgMusic.volume = 0.5;
+        let musicPlaying = false;
+        
+        // מעבר ממסך פתיחה למסך ראשי
+        document.getElementById('readyButton').addEventListener('click', function() {
+            // Start music
+            if (!musicPlaying) {
+                bgMusic.play().catch(e => console.log('Audio failed to play:', e));
+                musicPlaying = true;
+            }
+            
+            // Hide welcome screen with animation
+            const welcomeScreen = document.getElementById('welcomeScreen');
+            welcomeScreen.style.animation = 'fadeOut 1s forwards';
+            
+            // Show main content
+            setTimeout(function() {
+                welcomeScreen.style.display = 'none';
+                document.getElementById('mainContent').style.display = 'block';
+                
+                // התחלת אפקט מכונת הכתיבה לאחר הצגת המסך הראשי
+                startTypewriter();
+            }, 900);
+        });
+        
+        // פתיחת מודל דילוג לשלבים
+        document.getElementById('levelsButton').addEventListener('click', function() {
+            document.getElementById('levelsModal').style.display = 'flex';
+            
+            // Start music if not already playing
+            if (!musicPlaying) {
+                bgMusic.play().catch(e => console.log('Audio failed to play:', e));
+                musicPlaying = true;
+            }
+        });
+        
+        // סגירת מודל דילוג לשלבים
+        document.getElementById('backButton').addEventListener('click', function() {
+            document.getElementById('levelsModal').style.display = 'none';
+        });
+        
+        // ניווט לשלבים השונים
+        document.querySelectorAll('.level-button').forEach(button => {
+            button.addEventListener('click', function() {
+                const href = this.getAttribute('data-href');
+                if (href) {
+                    // Add click effect
+                    this.style.transform = 'scale(0.95)';
+                    setTimeout(() => {
+                        window.location.href = href;
+                    }, 300);
+                }
+            });
+        });
+        
+        // הפעלת אפקט מכונת הכתיבה - גרסה משופרת לעברית
+        function startTypewriter() {
+            const container = document.getElementById('typewriter-container');
+            const welcomeSound = document.getElementById('welcomeSound');
+            const checkboxContainer = document.querySelector('.checkbox-container');
+            
+            // הסתרת תיבת הסימון בהתחלה
+            checkboxContainer.style.display = 'none';
+            
+            // שמירת עוצמת המוזיקה המקורית
+            const originalVolume = bgMusic.volume;
+            
+            // הנמכת המוזיקה בזמן השמעת קטע הקול
+            bgMusic.volume = 0.1; // הנמכה ל-10% (הנמכה של 80%)
+            
+            // הפעלת קטע הקול
+            welcomeSound.play().catch(e => console.log('Welcome sound failed to play:', e));
+            
+            // החזרת עוצמת המוזיקה לאחר שקטע הקול מסתיים
+            welcomeSound.onended = function() {
+                bgMusic.volume = originalVolume;
+            };
+            
+            const textParts = [
+                "ברוכים הבאים למסע אל עולם המשחקים של פעם! התכוננו לחוויה נוסטלגית שתיקח אתכם אחורה בזמן אל שנות ה-80, התקופה הקסומה של משחקי הארקייד והקונסולות הראשונות.",
+                "בואו לגלות איך נראו המשחקים פעם, ואיך הטכנולוגיה שינתה את עולם המשחקים כפי שאנחנו מכירים אותו היום.",
+                "לפני שמתחילים:",
+                "יש להקשיב לכל סרטוני הוידאו ולהוראות במהלך הפעילות"
+            ];
+            
+            let currentPartIndex = 0;
+            
+            function createNextParagraph() {
+                if (currentPartIndex >= textParts.length) {
+                    // הצג את תיבת הסימון כשכל הטקסט הוצג
+                    checkboxContainer.style.display = 'block';
+                    return;
+                }
+                
+                const paragraph = document.createElement('p');
+                paragraph.className = 'typewriter-text';
+                container.appendChild(paragraph);
+                
+                const text = textParts[currentPartIndex];
+                const chars = text.split('');
+                
+                // יצירת אלמנטים נפרדים לכל תו
+                chars.forEach((char, i) => {
+                    const span = document.createElement('span');
+                    span.className = 'typewriter-text-char';
+                    span.textContent = char;
+                    span.style.opacity = '0';
+                    paragraph.appendChild(span);
+                });
+                
+                // הצגת תווים אחד אחרי השני
+                const spans = paragraph.querySelectorAll('.typewriter-text-char');
+                let charIndex = 0;
+                
+                const typingInterval = setInterval(() => {
+                    if (charIndex < spans.length) {
+                        spans[charIndex].style.opacity = '1';
+                        charIndex++;
+                    } else {
+                        clearInterval(typingInterval);
+                        currentPartIndex++;
+                        setTimeout(createNextParagraph, 500);
+                    }
+                }, 80);
+            }
+            
+            createNextParagraph();
+        }
+        
+        // בדיקת תיבת הסימון והפעלת הכפתור
+        document.getElementById('consentCheckbox').addEventListener('change', function() {
+            const startButton = document.getElementById('startButton');
+            if (this.checked) {
+                startButton.style.display = 'block';
+                startButton.classList.remove('disabled');
+            } else {
+                startButton.style.display = 'none';
+            }
+        });
+        
+        // כפתור "התחל משחק"
+        document.getElementById('startButton').addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            // Add click effect
+            this.style.animation = 'none';
+            setTimeout(() => {
+                this.style.animation = 'pulse 1s infinite';
+            }, 10);
+            
+            // Here you would navigate to the next page
+            setTimeout(() => {
+                window.location.href = 'tutorial.html';
+            }, 500);
+        });
+        
+        // Play music on user interaction (needed for browser autoplay policy)
+        document.addEventListener('click', function() {
+            if (!musicPlaying) {
+                bgMusic.play().catch(e => console.log('Audio failed to play:', e));
+                musicPlaying = true;
+            }
+        }, { once: true });
+        
+        // Handle video errors
+        const video = document.getElementById('background-video');
+        video.addEventListener('error', function() {
+            console.error('Error loading video');
+            document.body.style.background = 'linear-gradient(to bottom, #000, #220033)';
+        });
+        
+        // Handle video errors and set playback rate
+        const welcomeVideo = document.getElementById('welcomeVideo');
+        
+        // האט את הסרטון - ערך 0.5 אומר מהירות של חצי מהמקור
+        welcomeVideo.addEventListener('loadedmetadata', function() {
+            welcomeVideo.playbackRate = 0.5; // סרטון בחצי מהמהירות
+        });
+        
+        welcomeVideo.addEventListener('error', function() {
+            console.error('Error loading welcome video');
+            document.getElementById('welcomeScreen').style.backgroundImage = 'url("img/arcade.jpg")';
+            document.getElementById('welcomeScreen').style.backgroundSize = 'cover';
+            document.getElementById('welcomeScreen').style.backgroundPosition = 'center';
+        });
+        
+        // האט גם את סרטון הרקע השני
+        const mainVideo = document.getElementById('background-video');
+        mainVideo.addEventListener('loadedmetadata', function() {
+            mainVideo.playbackRate = 0.5; // סרטון בחצי מהמהירות
+        });
+    </script>
+</body>
+</html>

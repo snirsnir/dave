@@ -1,0 +1,2142 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>עולם תלת מימדי עם Three.js</title>
+    <!-- טעינת ספריות Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/controls/FirstPersonControls.js"></script>
+    <!-- טעינת ספריית Audio -->
+    <script src="https://cdn.jsdelivr.net/npm/howler@2.2.3/dist/howler.min.js"></script>
+    
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            cursor: default;
+        }
+        
+        #scene-container {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+        }
+        
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 20px;
+            border-radius: 10px;
+            z-index: 100;
+        }
+        
+        #interaction-button {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            display: none;
+            z-index: 100;
+        }
+        
+        #interaction-button:hover {
+            background-color: #45a049;
+        }
+        
+        #controls-info {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            color: white;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 14px;
+            z-index: 100;
+        }
+        
+        #next-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #2c3e50;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 200;
+            display: none;
+        }
+        
+        #back-button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 24px;
+            pointer-events: none;
+            z-index: 100;
+        }
+        #music-toggle {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background-color: rgba(0, 0, 0, 0.5);
+    color: white;
+    border: none;
+    border-radius: 5px;
+    padding: 5px 10px;
+    font-size: 20px;
+    cursor: pointer;
+    z-index: 100;
+}
+
+#music-toggle:hover {
+    background-color: rgba(0, 0, 0, 0.7);
+}
+/* Modal Styles */
+/* Modal Styles - יותר גדול וצבעוני לילדים */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    z-index: 1000;
+    font-family: 'Varela Round', Arial, sans-serif;
+}
+
+.modal-content {
+    position: relative;
+    background-color: #f8f8f8;
+    background-image: linear-gradient(to bottom, #e6f7ff, #ffffff);
+    margin: 5% auto;
+    width: 90%;
+    max-width: 700px;
+    border-radius: 25px;
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+    animation: modalPopIn 0.7s;
+    direction: rtl;
+    border: 8px solid #4CAF50;
+}
+
+@keyframes modalPopIn {
+    0% { transform: scale(0.5); opacity: 0; }
+    50% { transform: scale(1.05); opacity: 0.8; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+.modal-header {
+    background: linear-gradient(to left, #4CAF50, #2E8B57);
+    color: white;
+    padding: 20px;
+    border-radius: 17px 17px 0 0;
+    display: flex;
+    justify-content: center; /* שינוי מ-space-between ל-center */
+    align-items: center;
+    position: relative; /* הוספנו position relative */
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 32px;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    font-weight: bold;
+}
+
+.close-modal {
+    color: white;
+    font-size: 36px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: transform 0.3s;
+    position: absolute; /* מיקום מוחלט */
+    left: 20px; /* מיקום בצד שמאל של הכותרת */
+    top: 50%; /* מרכוז אנכי */
+    transform: translateY(-50%); /* מרכוז אנכי מדויק */
+}
+
+.close-modal:hover {
+    color: #ffcc00;
+    transform: translateY(-50%) rotate(90deg);
+}
+
+.modal-body {
+    padding: 30px;
+    background-color: white;
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><circle cx="50" cy="50" r="2" fill="%234CAF50" opacity="0.1"/></svg>');
+}
+
+.instruction {
+    display: flex;
+    align-items: center;
+    margin-bottom: 25px;
+    background-color: #f9f9f9;
+    padding: 15px;
+    border-radius: 15px;
+    border-right: 8px solid #4CAF50;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    transition: all 0.3s;
+}
+
+.instruction:hover {
+    background-color: #f0f8ff;
+    transform: translateX(-10px);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+}
+
+.icon {
+    font-size: 36px;
+    margin-left: 20px;
+    min-width: 50px;
+    text-align: center;
+    animation: bounce 2s infinite;
+}
+
+@keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+
+.text {
+    font-size: 22px;
+    font-weight: bold;
+    color: #333;
+}
+
+.modal-footer {
+    padding: 25px;
+    text-align: center;
+    background-color: #f0f0f0;
+    border-radius: 0 0 17px 17px;
+    background: linear-gradient(to bottom, #ffffff, #e6f7ff);
+}
+
+#start-game {
+    background: linear-gradient(to bottom, #4CAF50, #3e8e41);
+    color: white;
+    border: none;
+    padding: 15px 30px;
+    font-size: 24px;
+    border-radius: 50px;
+    cursor: pointer;
+    box-shadow: 0 6px 12px rgba(0,0,0,0.2);
+    transition: all 0.3s;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+
+
+#start-game:hover {
+    background: linear-gradient(to bottom, #3e8e41, #2e6b31);
+    transform: scale(1.1);
+    box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+}
+
+/* מסגרת מנצנצת לכותרת */
+.modal-title-container {
+    position: relative;
+    display: inline-block;
+}
+
+.modal-title-container h2 {
+    position: relative;
+    z-index: 1;
+}
+
+.modal-title-container::before {
+    content: '';
+    position: absolute;
+    top: -5px;
+    left: -5px;
+    right: -5px;
+    bottom: -5px;
+    border-radius: 10px;
+    background: linear-gradient(45deg, 
+        #ff0000, #ff7300, #fffb00, #48ff00, 
+        #00ffd5, #002bff, #7a00ff, #ff00c8, #ff0000);
+    background-size: 400%;
+    z-index: 0;
+    filter: blur(5px);
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.modal-header:hover .modal-title-container::before {
+    opacity: 1;
+    animation: glowing 20s linear infinite;
+}
+.adventure-button {
+    background: linear-gradient(to bottom, #FF5722, #E64A19) !important;
+    color: white !important;
+    border: none !important;
+    padding: 12px 25px !important;
+    font-size: 20px !important;
+    border-radius: 50px !important;
+    cursor: pointer !important;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2) !important;
+    transition: all 0.3s !important;
+    font-weight: bold !important;
+    margin-top: 10px !important;
+    display: inline-block !important;
+}
+
+.adventure-button:hover {
+    background: linear-gradient(to bottom, #E64A19, #D84315) !important;
+    transform: scale(1.05) !important;
+    box-shadow: 0 6px 12px rgba(0,0,0,0.3) !important;
+}
+@keyframes glowing {
+    0% { background-position: 0 0; }
+    50% { background-position: 400% 0; }
+    100% { background-position: 0 0; }
+}
+
+
+.mission-container {
+    background: linear-gradient(135deg, rgba(25, 25, 35, 0.85), rgba(40, 40, 70, 0.9));
+    border: 2px solid #64DD17;
+    border-radius: 15px;
+    padding: 3px;
+    box-shadow: 0 0 15px rgba(100, 221, 23, 0.6), 0 0 30px rgba(0, 0, 0, 0.4);
+    position: relative;
+    overflow: hidden;
+}
+
+.mission-container::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(45deg, 
+        rgba(100, 221, 23, 0.2) 0%, 
+        rgba(0, 0, 0, 0) 40%, 
+        rgba(0, 0, 0, 0) 60%, 
+        rgba(100, 221, 23, 0.2) 100%);
+    z-index: -1;
+}
+
+.mission-content {
+    background: rgba(20, 20, 30, 0.7);
+    border-radius: 12px;
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    position: relative;
+    z-index: 1;
+}
+
+.mission-icon {
+    font-size: 32px;
+    margin-left: 15px;
+    text-shadow: 0 0 10px #64DD17;
+    animation: pulse-glow 2s infinite alternate;
+}
+
+.mission-text {
+    text-align: right;
+}
+
+.mission-title {
+    color: #64DD17;
+    font-size: 18px;
+    font-weight: bold;
+    margin-bottom: 5px;
+    text-shadow: 0 0 8px rgba(100, 221, 23, 0.8);
+}
+
+.mission-desc {
+    color: white;
+    font-size: 16px;
+    font-weight: bold;
+    text-shadow: 0 0 5px rgba(0, 0, 0, 0.8);
+}
+
+@keyframes pulse-glow {
+    from { text-shadow: 0 0 10px #64DD17, 0 0 20px #64DD17; }
+    to { text-shadow: 0 0 15px #64DD17, 0 0 30px #64DD17, 0 0 40px #64DD17; }
+}
+
+#mission-popup {
+    animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+    0% { transform: translate(-50%, 0px); }
+    50% { transform: translate(-50%, -10px); }
+    100% { transform: translate(-50%, 0px); }
+}
+#video-modal .modal-content {
+    max-width: 800px;
+    background-color: #000;
+    border: 8px solid #FF5722;
+}
+
+#video-modal .modal-header {
+    background: linear-gradient(to left, #FF5722, #FF8A65);
+}
+
+#intro-video {
+    display: block;
+    border-radius: 0 0 17px 17px;
+}
+@keyframes blink {
+    0%, 100% { border-color: transparent; }
+    50% { border-color: white; }
+}
+
+.typewriter-cursor {
+    display: inline-block;
+    width: 3px;
+    height: 0.9em;
+    background-color: white;
+    margin-right: 2px;
+    margin-left: 2px;
+    animation: blink 1s step-end infinite;
+}
+    </style>
+</head>
+<body>
+<!-- Modal for video -->
+<div id="video-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <div class="modal-title-container">
+                <h2>ברוכים הבאים להרפתקה!</h2>
+            </div>
+        </div>
+        <div class="modal-body" style="padding: 0;">
+            <video id="intro-video" width="100%" controls>
+                <source src="tutorial/1.mp4" type="video/mp4">
+                הדפדפן שלך לא תומך בתגית וידאו.
+            </video>
+        </div>
+    </div>
+</div>
+<!-- מכל וידאו הדרכה קבוע בפינה -->
+<!-- מכל וידאו הדרכה קבוע בפינה -->
+<div id="tutorial-video-container" style="position: fixed; top: 10px; left: 10px; width: 332px; height: 250px; z-index: 2000; background-color: rgba(0,0,0,0.5); border-radius: 8px; overflow: hidden; box-shadow: 0 0 10px rgba(0,0,0,0.5); display: none;">
+    <video id="tutorial-video" width="100%" height="100%" style="object-fit: cover;">
+        <source src="" type="video/mp4">
+    </video>
+</div>
+    <div id="scene-container"></div>
+
+    <button id="music-toggle" title="השתק/הפעל מוזיקה">
+        🔊
+    </button>
+    <div id="loading">טוען את העולם...</div>
+    
+    <div id="controls-info">
+        <p>תנועה קדימה: הקשה על קליק שמאלי בעכבר</p>
+        <p>תנועה אחורה: הקשה על קליק ימני בעכבר</p>
+        <p>מבט: הזיזו את העכבר</p>
+    </div>
+    
+    <div id="crosshair">+</div>
+    
+    <button id="interaction-button">לחץ כאן לאינטראקציה</button>
+    
+    <div id="next-screen">
+        <h1>הגעת ליעד!</h1>
+        <p>זהו המסך הבא.</p>
+        <button id="back-button">חזרה לעולם</button>
+    </div>
+    <button id="music-toggle" title="השתק/הפעל מוזיקה">
+    🔊
+</button>
+<!-- Modal for navigation instructions -->
+<!-- Modal for navigation instructions -->
+<div id="typewriter-container" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; text-align: center; width: 90%; max-width: 800px;">
+    <div id="typewriter-text" style="font-size: 36px; color: white; text-shadow: 2px 2px 4px rgba(0,0,0,0.7); font-weight: bold; direction: rtl; background-color: rgba(0,0,0,0.6); padding: 20px; border-radius: 10px;"></div>
+</div>
+    <script>
+        // יצירת סצנה, מצלמה ורנדרר
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+
+// כיוון ישיר של המצלמה - נוסף
+camera.rotation.x = THREE.MathUtils.degToRad(-20);  // הטיה קלה כלפי מטה
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+        camera.position.set(0, 0.3, 0);
+        
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap; // צללים רכים יותר
+        
+        // הגדרת צבע רקע שמיים כחול
+        renderer.setClearColor(0x222222); // אפור בהיר יותר לתקרה/קירות
+        document.getElementById('scene-container').appendChild(renderer.domElement);
+        
+        // משתנים גלובליים
+// משתנים גלובליים
+// משתנים גלובליים
+// משתנים גלובליים
+// משתנים גלובליים
+// משתנים גלובליים
+let controls;
+let worldModel;
+let customModels = [];
+let treesWithColliders = [];
+let isLoaded = false;
+let clock = new THREE.Clock();
+let ground;
+let movementLocked = true;
+let logoAudioPlayed = false; 
+let leftLogoAudioPlayed = false; 
+let topLogoAudioPlayed = false;
+let bottomLogoAudioPlayed = false;
+let playerHeightLogoAudioPlayed = false;
+let walkingBackwardChecked = false; // הוספת משתנה זה
+let previousPosition = null; // לשמירת המיקום הקודם
+let backwardMovementTimer = 0; // זמן שהשחקן הלך אחורה
+let isPortalVisible = false;
+let initialCameraQuaternion; // לשמירת כיוון המבט ההתחלתי
+// משתנים לנגן וידאו הדרכה
+let tutorialVideo = null;
+let currentVideoClip = null;
+
+        // משתנים לאודיו
+        let walkSound;
+        let isWalking = false;
+        
+        // נקודת אינטראקציה
+        const interactionPoint = new THREE.Vector3(5, 0, 5);
+        const interactionRadius = 2;
+        let isNearInteractionPoint = false;
+        
+        // נקודת המעבר המיוחדת למסך הבא
+        const specialPortalPoint = new THREE.Vector3(-66.88, 2.28, 4.96);
+        const portalRadius = 4; // רדיוס גדול יותר לאזור הפורטל
+        let portalParticles; // משתנה לשמירת מערכת החלקיקים של הפורטל
+        
+        // יצירת פורטל עם חלקיקי עשן סגול
+        const createPortalEffect = () => {
+    // יצירת גיאומטריה לחלקיקים
+    const particleCount = 500;
+    const particleGeometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(particleCount * 3);
+    const colors = new Float32Array(particleCount * 3);
+    
+    // הגדרת עשן במעגל סביב נקודת הפורטל
+    for (let i = 0; i < particleCount; i++) {
+        // מיקום אקראי בתוך ספירה
+        const angle = Math.random() * Math.PI * 2;
+        const radius = Math.random() * portalRadius;
+        const height = Math.random() * 5; // גובה החלקיקים
+        
+        // הוספת רנדומיות קטנה למיקום
+        positions[i * 3] = specialPortalPoint.x + Math.cos(angle) * radius;
+        positions[i * 3 + 1] = specialPortalPoint.y + height;
+        positions[i * 3 + 2] = specialPortalPoint.z + Math.sin(angle) * radius;
+        
+        // צבע סגול עם וריאציות קלות
+        colors[i * 3] = 0.5 + Math.random() * 0.2; // אדום
+        colors[i * 3 + 1] = 0; // ירוק
+        colors[i * 3 + 2] = 0.8 + Math.random() * 0.2; // כחול
+    }
+    
+    particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    particleGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    
+    // יצירת מטריאל לחלקיקים עם סוג ערבוב (Blending) מתאים לעשן
+    const particleMaterial = new THREE.PointsMaterial({
+        size: 0.4,
+        transparent: true,
+        opacity: 0.6,
+        vertexColors: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        sizeAttenuation: true
+    });
+    
+    // יצירת המערכת חלקיקים
+    portalParticles = new THREE.Points(particleGeometry, particleMaterial);
+    portalParticles.visible = false; // הפורטל מוסתר בהתחלה
+    scene.add(portalParticles);
+    
+    // הוספת אור נקודתי סגול באזור הפורטל
+    const portalLight = new THREE.PointLight(0x9932CC, 1, 10);
+    portalLight.position.copy(specialPortalPoint);
+    portalLight.position.y += 1.5; // הרמת האור מעט
+    portalLight.visible = false; // האור מוסתר בהתחלה
+    portalLight.name = 'portalLight'; // נתן שם כדי שנוכל למצוא אותו מאוחר יותר
+    scene.add(portalLight);
+};
+
+        
+        // אנימציה לפורטל
+        const animatePortal = () => {
+            if (portalParticles) {
+                const positions = portalParticles.geometry.attributes.position.array;
+                
+                for (let i = 0; i < positions.length; i += 3) {
+                    // תנועה אקראית קלה
+                    positions[i] += (Math.random() - 0.5) * 0.05;
+                    positions[i + 1] += Math.random() * 0.05; // תנועה קלה למעלה
+                    positions[i + 2] += (Math.random() - 0.5) * 0.05;
+                    
+                    // החזר חלקיקים שיצאו חזרה לאזור הפורטל
+                    const dx = positions[i] - specialPortalPoint.x;
+                    const dz = positions[i + 2] - specialPortalPoint.z;
+                    const distance = Math.sqrt(dx * dx + dz * dz);
+                    
+                    if (distance > portalRadius || positions[i + 1] > specialPortalPoint.y + 5) {
+                        // אם החלקיק יצא מהגבולות, החזר אותו למיקום חדש בתוך הפורטל
+                        const angle = Math.random() * Math.PI * 2;
+                        const radius = Math.random() * portalRadius * 0.7;
+                        
+                        positions[i] = specialPortalPoint.x + Math.cos(angle) * radius;
+                        positions[i + 1] = specialPortalPoint.y + Math.random() * 2.5;
+                        positions[i + 2] = specialPortalPoint.z + Math.sin(angle) * radius;
+                    }
+                }
+                
+                portalParticles.geometry.attributes.position.needsUpdate = true;
+            }
+        };
+        
+        // פונקציה לבדיקת מיקום חדש ומעבר למסך הבא
+        const checkCustomLocationPoints = (position) => {
+    // בדיקת מרחק מנקודת הפורטל המיוחדת
+    const distanceToPortal = position.distanceTo(specialPortalPoint);
+    
+    // רק אם הפורטל גלוי ואם השחקן קרוב אליו
+    if (isPortalVisible && distanceToPortal < portalRadius / 2) {
+        // מעבר לדף tunnel.html
+        window.location.href = 'start.html';
+        return true;
+    }
+    
+    return false;
+};
+        // קבוע גובה השחקן מעל האדמה
+        const PLAYER_HEIGHT = 1.7;
+        
+        // תאורה ואפקטים
+        const setupLighting = () => {
+    // אור סביבה בעוצמה בינונית-גבוהה
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+    scene.add(ambientLight);
+    
+    // אור כיווני מלמעלה
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.6);
+    directionalLight.position.set(0, 20, 0);
+    directionalLight.castShadow = true;
+    scene.add(directionalLight);
+    
+    // כמה אורות נקודתיים בודדים
+    const createPointLight = (x, z) => {
+        const light = new THREE.PointLight(0xffffff, 0.8, 40);
+        light.position.set(x, 10, z);
+        scene.add(light);
+        return light;
+    };
+    
+    // מספר מופחת של אורות
+    createPointLight(0, 0);
+    createPointLight(-30, -30);
+    createPointLight(30, 30);
+    createPointLight(-30, 30);
+    createPointLight(30, -30);
+    
+    // הסרת ערפל
+    scene.fog = null;
+};
+        
+        // טקסטורת דשא מציאותית
+        const createRealisticGrassTexture = () => {
+            const grassTextureSize = 1024;
+            const canvas = document.createElement('canvas');
+            canvas.width = grassTextureSize;
+            canvas.height = grassTextureSize;
+            const ctx = canvas.getContext('2d');
+            
+            // רקע ירוק בסיס
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            gradient.addColorStop(0, '#2d4c15');
+            gradient.addColorStop(0.3, '#3a5a21');
+            gradient.addColorStop(0.6, '#3e6b1d');
+            gradient.addColorStop(1, '#345c14');
+            
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // פונקציה ליצירת גבעול דשא ריאליסטי
+            const drawGrassStrand = (x, y, width, height, color) => {
+                ctx.beginPath();
+                
+                // התחלת קו בבסיס הגבעול
+                ctx.moveTo(x, y + height);
+                
+                // יצירת עקומה מעט אקראית לגבעול הדשא
+                const cp1x = x - width/2 + Math.random() * width;
+                const cp1y = y + height * 0.7;
+                const cp2x = x - width/3 + Math.random() * width;
+                const cp2y = y + height * 0.4;
+                
+                ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, x, y);
+                
+                ctx.lineWidth = 1 + Math.random() * 1.5;
+                ctx.strokeStyle = color;
+                ctx.stroke();
+            };
+            
+            // יצירת שכבות של גבעולי דשא בגוונים שונים
+            // שכבה 1: דשא גבוה יותר - כהה
+            for (let i = 0; i < 5000; i++) {
+                const x = Math.random() * canvas.width;
+                const y = Math.random() * 10; // מעט עבור הבסיס
+                const height = 15 + Math.random() * 30;
+                const color = `hsl(${80 + Math.random() * 40}, ${60 + Math.random() * 30}%, ${20 + Math.random() * 10}%)`;
+                
+                drawGrassStrand(x, y, 2, height, color);
+            }
+            
+            // שכבה 2: דשא באורך בינוני - בהיר יותר
+            for (let i = 0; i < 8000; i++) {
+                const x = Math.random() * canvas.width;
+                const y = Math.random() * 15;
+                const height = 10 + Math.random() * 20;
+                const color = `hsl(${90 + Math.random() * 30}, ${70 + Math.random() * 20}%, ${30 + Math.random() * 15}%)`;
+                
+                drawGrassStrand(x, y, 1.5, height, color);
+            }
+            
+            // שכבה 3: דשא קצר - בהיר
+            for (let i = 0; i < 10000; i++) {
+                const x = Math.random() * canvas.width;
+                const y = Math.random() * 20;
+                const height = 5 + Math.random() * 15;
+                const color = `hsl(${100 + Math.random() * 20}, ${70 + Math.random() * 20}%, ${35 + Math.random() * 15}%)`;
+                
+                drawGrassStrand(x, y, 1, height, color);
+            }
+            
+            // הוספת פרחים קטנים ופרטים אקראיים
+            for (let i = 0; i < 500; i++) {
+                const x = Math.random() * canvas.width;
+                const y = Math.random() * canvas.height;
+                const size = 1 + Math.random() * 2;
+                
+                // בחירה אקראית בין צהוב ולבן לפרחים קטנים
+                const flowerColors = ['#ffffff', '#ffffd0', '#ffff80', '#fbec5d'];
+                ctx.fillStyle = flowerColors[Math.floor(Math.random() * flowerColors.length)];
+                
+                ctx.beginPath();
+                ctx.arc(x, y, size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            // יצירת טקסטורה מהקנבס
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.wrapS = THREE.RepeatWrapping;
+            texture.wrapT = THREE.RepeatWrapping;
+            texture.repeat.set(8, 8); // חזרה רבה יותר לפרטים קטנים יותר
+            
+            return texture;
+        };
+        
+        // יצירת מפת נורמלים בסיסית
+        const createNormalMap = () => {
+            const size = 512;
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            
+            // מילוי עם צבע ברירת מחדל של נורמל מפ - כחול (0,0,1)
+            ctx.fillStyle = 'rgb(128, 128, 255)';
+            ctx.fillRect(0, 0, size, size);
+            
+            // יצירת מרקם אקראי לנורמל מפ
+            for (let i = 0; i < 5000; i++) {
+                const x = Math.random() * size;
+                const y = Math.random() * size;
+                const radius = 1 + Math.random() * 3;
+                
+                // יצירת וריאציה קטנה בכיוון הנורמל
+                const r = 128 + Math.random() * 20 - 10;
+                const g = 128 + Math.random() * 20 - 10;
+                const b = 230 + Math.random() * 25;
+                
+                ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+                ctx.beginPath();
+                ctx.arc(x, y, radius, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            const normalMap = new THREE.CanvasTexture(canvas);
+            normalMap.wrapS = THREE.RepeatWrapping;
+            normalMap.wrapT = THREE.RepeatWrapping;
+            normalMap.repeat.set(8, 8);
+            
+            return normalMap;
+        };
+        
+        // יצירת קרקע עם גבעות
+        const createGround = () => {
+    const size = 200;
+    const segments = 16; // הפחתת מספר הסגמנטים כי אנחנו לא צריכים הרבה פרטים
+    const geometry = new THREE.PlaneGeometry(size, size, segments, segments);
+    
+    // אין צורך לשנות את הגובה של המשטח כי אנחנו רוצים אותו ישר
+    
+    // יצירת מטריאל אפור עם טקסטורה של בטון/מתכת
+    const texture = createConcreteTexture();
+    const groundMaterial = new THREE.MeshStandardMaterial({ 
+    map: texture,
+    roughness: 0.5, // בינוני
+    metalness: 0.2, // מעט מתכתי
+    side: THREE.DoubleSide,
+    emissive: 0x111111, // אור עצמי מינימלי
+    emissiveIntensity: 0.1 // עוצמה נמוכה
+});
+    
+    ground = new THREE.Mesh(geometry, groundMaterial);
+    ground.rotation.x = -Math.PI / 2;
+    ground.receiveShadow = true;
+    scene.add(ground);
+    
+    return ground;
+};
+const createConcreteTexture = () => {
+    const textureSize = 1024;
+    const canvas = document.createElement('canvas');
+    canvas.width = textureSize;
+    canvas.height = textureSize;
+    const ctx = canvas.getContext('2d');
+    
+    // צבע רקע אפור בהיר (לא לבן)
+    ctx.fillStyle = '#b0b0b0'; // אפור בהיר
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // מרקם בגוונים של אפור
+    for (let i = 0; i < 8000; i++) {
+        const x = Math.random() * canvas.width;
+        const y = Math.random() * canvas.height;
+        const size = Math.random() * 2 + 0.5;
+        
+        // מרקם בגווני אפור - גם בהירים וגם כהים
+        const shade = Math.floor(160 + Math.random() * 60); // 160-220
+        ctx.fillStyle = `rgb(${shade}, ${shade}, ${shade})`;
+        
+        ctx.beginPath();
+        ctx.arc(x, y, size, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    
+    // קווי רשת אפורים
+    const gridSize = 64;
+    ctx.strokeStyle = '#999999'; // אפור בינוני
+    ctx.lineWidth = 1.5;
+    
+    // קווים אופקיים
+    for (let y = 0; y < canvas.height; y += gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvas.width, y);
+        ctx.stroke();
+    }
+    
+    // קווים אנכיים
+    for (let x = 0; x < canvas.width; x += gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, canvas.height);
+        ctx.stroke();
+    }
+    
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(8, 8);
+    
+    return texture;
+};
+        // פונקציה למציאת גובה האדמה בנקודה מסוימת
+        const getGroundHeight = (x, z) => {
+    return 0; // משטח שטוח בגובה 0
+};
+        
+        // יצירת מודל לעץ מציאותי
+
+const checkTreeCollisions = (newPosition) => {
+    // רדיוס השחקן
+    const playerRadius = 0.5;
+    
+    for (const tree of treesWithColliders) {
+        // בדיקת מרחק אופקי בלבד (X,Z)
+        const dx = newPosition.x - tree.position.x;
+        const dz = newPosition.z - tree.position.z;
+        const distance = Math.sqrt(dx * dx + dz * dz);
+        
+        // אם המרחק קטן מסכום הרדיוסים, יש התנגשות
+        if (distance < (playerRadius + tree.radius)) {
+            return true; // יש התנגשות
+        }
+    }
+    
+    return false; // אין התנגשות
+};
+        
+        // יצירת יער עצים מציאותי
+
+        // יצירת מערכת שליטה בגוף ראשון
+        const setupFirstPersonControls = () => {
+    controls = new THREE.FirstPersonControls(camera, renderer.domElement);
+    controls.movementSpeed = 4;
+    controls.lookSpeed = 0.03;
+    controls.lookVertical = true;
+    controls.constrainVertical = true;
+    controls.verticalMin = Math.PI / 6;
+    controls.verticalMax = Math.PI / 1.8;
+    
+    // קביעת זווית התחלתית שמסתכלת יותר למטה
+    controls.lon = 0;
+    controls.lat = -60;  // הערך היה -40, עכשיו יותר שלילי = יותר כלפי מטה
+    controls.phi = Math.PI/2 - THREE.MathUtils.degToRad(-60);  // חייב להתאים לערך של lat
+    controls.theta = THREE.MathUtils.degToRad(0);
+    
+    // התחל עם בקרות מושבתות
+    controls.enabled = false;
+    
+    // מרחיבים את האזור הפעיל - רק 2% בקצוות יהיו "מתים"
+    const boundaryThreshold = 0.02; // קטן יותר = יותר שטח פעיל
+    
+    // מחליפים את מאזין העכבר
+    document.addEventListener('mousemove', (e) => {
+        // אם התנועה עדיין נעולה לחלוטין, לא עושים כלום
+        if (!controls.enabled) return;
+        
+        const mouseX = e.clientX / window.innerWidth;
+        const mouseY = e.clientY / window.innerHeight;
+        
+        const isNearLeftEdge = mouseX < boundaryThreshold;
+        const isNearRightEdge = mouseX > (1 - boundaryThreshold);
+        const isNearTopEdge = mouseY < boundaryThreshold;
+        const isNearBottomEdge = mouseY > (1 - boundaryThreshold);
+        
+        // רק אם העכבר ממש בקצה המסך, נבטל את הסתכלות
+        if (isNearLeftEdge || isNearRightEdge || isNearTopEdge || isNearBottomEdge) {
+            if (controls.activeLook !== false) {
+                controls.activeLook = false;
+            }
+        } else {
+            // אחרת, תמיד נאפשר הסתכלות, גם אם התנועה נעולה
+            if (controls.activeLook !== true) {
+                controls.activeLook = true;
+            }
+        }
+    });
+    
+    // הוספת פתרון נוסף: כאשר העכבר נכנס בחזרה למסך
+    document.addEventListener('mouseenter', () => {
+        if (controls.enabled) {
+            controls.activeLook = true;
+        }
+    });
+};
+        // טעינת מודל GLB (אם קיים)
+        const loadGLB = (url = '3d/tutorial.glb', scale = 20, position = { x: 0, y: 8, z: 0 }, isCustom = false) => {
+            const loader = new THREE.GLTFLoader();
+            
+            // הצגת הודעת טעינה
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('loading').textContent = 'טוען את המודל...';
+            
+            loader.load(
+                url,
+                (gltf) => {
+                    const model = gltf.scene;
+                    
+                    // הגדרת צללים לכל המשים במודל
+                    model.traverse((node) => {
+                        if (node.isMesh) {
+                            node.castShadow = true;
+                            node.receiveShadow = true;
+                            
+                            // היפוך הנורמלים אם זה לא מודל שהועלה על-ידי המשתמש
+                            if (!isCustom && node.geometry) {
+                                node.geometry.scale(-1, 1, 1);
+                                node.material.side = THREE.BackSide;
+                            }
+                        }
+                    });
+                    
+                    // סולם ומיקום המודל
+                    model.scale.set(scale, scale, scale);
+                    model.position.set(position.x, position.y, position.z);
+                    
+                    // שמירת המודל למשתנה הגלובלי אם זה המודל המקורי
+                    if (!isCustom) {
+                        worldModel = model;
+                    } else {
+                        // הוספה למערך המודלים המותאמים אישית
+                        customModels.push(model);
+                    }
+                    
+                    scene.add(model);
+                    document.getElementById('loading').style.display = 'none';
+                    isLoaded = true;
+                    if (window.backgroundMusic && !window.backgroundMusic.playing()) {
+    window.backgroundMusic.play();
+    console.log('מוזיקת רקע הופעלה');
+}
+                },
+                (xhr) => {
+                    const percentComplete = (xhr.loaded / xhr.total) * 100;
+                    document.getElementById('loading').textContent = 
+                        `טוען את המודל... ${Math.round(percentComplete)}%`;
+                },
+                (error) => {
+                    console.error('שגיאה בטעינת המודל:', error);
+                    document.getElementById('loading').style.display = 'none';
+                    isLoaded = true;
+                }
+            );
+        };
+        
+        // בדיקה אם המשתמש קרוב לנקודת האינטראקציה
+        const checkInteractionPoint = () => {
+            const distance = camera.position.distanceTo(interactionPoint);
+            
+            if (distance < interactionRadius && !isNearInteractionPoint) {
+                isNearInteractionPoint = true;
+                document.getElementById('interaction-button').style.display = 'block';
+            } 
+            else if (distance >= interactionRadius && isNearInteractionPoint) {
+                isNearInteractionPoint = false;
+                document.getElementById('interaction-button').style.display = 'none';
+            }
+        };
+        
+        // אינטראקציה בלחיצה על הכפתור
+        document.getElementById('interaction-button').addEventListener('click', () => {
+            document.getElementById('next-screen').style.display = 'flex';
+            document.getElementById('interaction-button').style.display = 'none';
+            controls.enabled = false; // השבתת השליטה במצב מסך הבא
+        });
+        
+        // חזרה לעולם
+        document.getElementById('back-button').addEventListener('click', () => {
+            document.getElementById('next-screen').style.display = 'none';
+            controls.enabled = true; // הפעלת השליטה מחדש
+        });
+        
+        // התאמת גודל החלון
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            
+            if (controls) {
+                controls.handleResize();
+            }
+        });
+        
+        // הגדרת סאונד להליכה
+        const setupWalkSound = () => {
+    // יצירת אובייקט סאונד להליכה עם האופציה להפעלה חוזרת (loop)
+    walkSound = new Howl({
+        src: ['audio/walk.mp3'],
+        loop: true,
+        volume: 0.7
+    });
+    
+    // הוספת מאזין לאירוע לחיצה על כפתור העכבר
+    document.addEventListener('mousedown', (e) => {
+        // בדיקה אם לחץ כפתור שמאלי (0) או ימני (2) וגם אם התנועה לא נעולה וגם הבקרות פעילות
+        if ((e.button === 0 || e.button === 2) && !isWalking && !movementLocked && controls && controls.enabled) {
+            walkSound.play();
+            isWalking = true;
+        }
+    });
+    
+    // הוספת מאזין לאירוע שחרור כפתור העכבר
+    document.addEventListener('mouseup', (e) => {
+        // בדיקה אם שוחרר כפתור שמאלי (0) או ימני (2)
+        if ((e.button === 0 || e.button === 2) && isWalking) {
+            walkSound.pause();
+            isWalking = false;
+        }
+    });
+    
+    // מניעת תפריט קליק ימני
+    document.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+    });
+};
+        // הגדרת מערכת השמעת מוזיקת רקע רנדומלית
+const setupBackgroundMusic = () => {
+    // מערך של נתיבים לקבצי המוזיקה
+    const musicTracks = [
+        'audio/park/1.mp3',
+        'audio/park/2.mp3',
+        'audio/park/3.mp3',
+        'audio/park/4.mp3'
+    ];
+    
+    // בחירת שיר אקראי מהמערך
+    const randomTrackIndex = Math.floor(Math.random() * musicTracks.length);
+    const selectedTrack = musicTracks[randomTrackIndex];
+    
+    // יצירת אובייקט סאונד למוזיקת רקע
+    const backgroundMusic = new Howl({
+        src: [selectedTrack],
+        loop: true,      // ניגון חוזר
+        volume: 0.4,     // עוצמת שמע (0-1)
+        autoplay: false  // לא להתחיל אוטומטית
+    });
+    
+    // שמירת האובייקט למשתנה גלובלי כדי שנוכל להתייחס אליו בהמשך
+    window.backgroundMusic = backgroundMusic;
+    
+    console.log(`נבחר שיר רקע: ${selectedTrack}`);
+    
+    // הוספת פונקציה להפעלה/השתקה עם המקש M
+// הוספת מאזין למקשי מקלדת כדי לבטל מקשי חצים כשהתנועה נעולה
+document.addEventListener('keydown', (e) => {
+    // אם התנועה נעולה, מנע את האירוע כשמדובר במקשי חצים
+    if (movementLocked) {
+        if (e.key === 'ArrowUp' || e.key === 'ArrowDown' || 
+            e.key === 'ArrowLeft' || e.key === 'ArrowRight' ||
+            e.key === 'w' || e.key === 's' || 
+            e.key === 'a' || e.key === 'd') {
+            e.preventDefault();
+        }
+    }
+}, { passive: false });
+    // הוספת מאזין לכפתור השתקה/הפעלה
+const musicToggleBtn = document.getElementById('music-toggle');
+if (musicToggleBtn) {
+    musicToggleBtn.addEventListener('click', () => {
+        if (backgroundMusic.playing()) {
+            backgroundMusic.pause();
+            musicToggleBtn.textContent = '🔇';
+            console.log('מוזיקה הושתקה');
+        } else {
+            backgroundMusic.play();
+            musicToggleBtn.textContent = '🔊';
+            console.log('מוזיקה הופעלה');
+        }
+    });
+}
+    // החזרת האובייקט במקרה שנרצה להשתמש בו
+    return backgroundMusic;
+};
+        // אתחול הסצנה
+// Modal functionality
+// Modal functionality with improved effects for kids
+
+// הוספת אפקט הופעה לחלונית המשימה
+// הוספת אפקט הופעה לחלונית המשימה
+// הוספת אפקט הופעה לחלונית המשימה
+
+// פונקציה להצגת מודל הסרטון
+const setupVideoModal = () => {
+    const videoModal = document.getElementById('video-modal');
+    const introVideo = document.getElementById('intro-video');
+    
+    // הצגת המודל אחרי 3 שניות
+    setTimeout(() => {
+        videoModal.style.display = 'block';
+        
+        // השבת שליטה בזמן הצגת הסרטון
+        if (controls) {
+            controls.enabled = false;
+        }
+        
+        // השהיית מוזיקת רקע אם מופעלת
+        if (window.backgroundMusic && window.backgroundMusic.playing()) {
+            window.backgroundMusic.pause();
+        }
+        
+        // הפעלת הסרטון אוטומטית
+        introVideo.play();
+        
+        // הוספת מאזין לסיום הסרטון
+// הוספת מאזין לסיום הסרטון
+// הוספת מאזין לסיום הסרטון
+// הוספת מאזין לסיום הסרטון
+// במקום שבו מטפלים בסיום הוידאו (אחרי שקובץ 1.mp3 מושמע)
+introVideo.addEventListener('ended', () => {
+    // סגירת מודל הסרטון
+    videoModal.style.display = 'none';
+    
+    // וודא שהתנועה עדיין נעולה
+    movementLocked = true;
+    
+    // וודא שהבקרות עדיין מושבתות
+    if (controls) {
+        controls.enabled = false;
+    }
+    
+    // הפעלת מוזיקת רקע אם הייתה מושתקת
+    if (window.backgroundMusic && !window.backgroundMusic.playing()) {
+        window.backgroundMusic.play();
+    }
+    
+    // איפוס זווית המבט למצב ישר קדימה ומעט כלפי מטה (הרבה יותר כלפי מטה)
+    if (controls) {
+        controls.lon = 0;
+        controls.lat = -60;  // הערך היה 0, עכשיו יותר שלילי
+        controls.phi = Math.PI/2 - THREE.MathUtils.degToRad(-60);  // התאמה לערך של lat
+        controls.theta = THREE.MathUtils.degToRad(0);
+    }
+    
+    // תזמון של 3 שניות לפני הפעלת האודיו והטקסט
+    setTimeout(() => {
+        playInstructionAudio();
+    }, 3000);
+});
+    }, 3000); // 3 שניות
+};
+// Add this line to your init function
+// פונקציה ליצירת אפקט מכונת כתיבה
+const typewriterEffect = (text, elementId, speed = 100) => {
+    const element = document.getElementById(elementId);
+    if (!element) return;
+    
+    element.innerHTML = ''; // ניקוי הטקסט הקיים
+    
+    // הוספת סמן מהבהב
+    const cursor = document.createElement('span');
+    cursor.className = 'typewriter-cursor';
+    element.appendChild(cursor);
+    
+    let i = 0;
+    const typing = () => {
+        if (i < text.length) {
+            // הוספת אות נוספת
+            const char = document.createTextNode(text.charAt(i));
+            element.insertBefore(char, cursor);
+            i++;
+            setTimeout(typing, speed);
+        } else {
+            // הסרת הסמן אחרי 3 שניות
+            setTimeout(() => {
+                cursor.style.display = 'none';
+            }, 3000);
+        }
+    };
+    
+    typing();
+};
+
+// פונקציה להשמעת קול והצגת טקסט מכונת כתיבה
+const playInstructionAudio = () => {
+    movementLocked = true;
+
+    const instructionSound = new Howl({
+        src: ['tutorial/2.mp3'],
+        volume: 0.7,
+        onend: () => {
+            console.log('סיום השמעת הוראות');
+
+            // שחזור המבט ההתחלתי המדויק שנשמר קודם לכן
+            if (initialCameraQuaternion) {
+                camera.quaternion.copy(initialCameraQuaternion);
+            }
+
+            if (controls) {
+                controls.lon = 0;
+                controls.lat = -40;
+                controls.phi = Math.PI / 2 - THREE.MathUtils.degToRad(-40);
+                controls.theta = THREE.MathUtils.degToRad(0);
+                controls.update(0);
+
+                controls.enabled = true;
+                controls.activeLook = true;
+            }
+
+            movementLocked = true;
+        }
+    });
+
+    const typewriterContainer = document.getElementById('typewriter-container');
+    if (typewriterContainer) {
+        typewriterContainer.style.display = 'block';
+    }
+
+    // הפעלת קטע וידאו 2
+    loadAndPlayVideo(2);
+    
+    instructionSound.play();
+
+    typewriterEffect('ברוכים הבאים למתחם האימונים!\nנתחיל בהזזת הראש, בשביל להסתכל לכיוון ימין, הזיזו את העכבר לצד ימין, עצרו שתראו את לוגו הטכנודע', 'typewriter-text', 80);
+
+    setTimeout(() => {
+        if (typewriterContainer) {
+            typewriterContainer.style.display = 'none';
+        }
+    }, 12000);
+};
+
+// פונקציה לשליטה בתנועה - תוכל לקרוא לה מאוחר יותר
+const setMovementControls = (allowMovement) => {
+    movementLocked = !allowMovement;
+    console.log(allowMovement ? "תנועה הופעלה" : "תנועה נעולה");
+};
+// פונקציה ליצירת נקודה אדומה
+// פונקציה לבדיקה אם הלוגו נמצא במרכז מבט המצלמה
+// פונקציה לבדיקה אם הלוגו נמצא במרכז מבט המצלמה
+// פונקציה לבדיקה אם הלוגו נמצא במרכז מבט המצלמה
+// פונקציה לבדיקה אם הלוגו נמצא במרכז מבט המצלמה
+const checkLogoInView = () => {
+    // מיקום קבוע של הלוגו הימני
+    const rightLogoPosition = new THREE.Vector3(20, 2, -0.41);
+    
+    // מיקום קבוע של הלוגו השמאלי (אחרי שזז)
+    const leftLogoPosition = new THREE.Vector3(-20, 2, -0.41);
+    
+    // מיקום קבוע של הלוגו העליון
+    const topLogoPosition = new THREE.Vector3(-20, 15, -0.41);
+    
+    // מיקום קבוע של הלוגו התחתון
+    const bottomLogoPosition = new THREE.Vector3(-20, 1.7, -0.41);
+    
+    // מיקום קבוע של הלוגו בגובה השחקן
+    const playerHeightLogoPosition = new THREE.Vector3(-40, 1.7, -0.41);
+    
+    // חישוב וקטור כיוון המצלמה
+    const cameraDirection = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion).normalize();
+    
+    // הגדרת טווח החריגה שבו נחשב שהמצלמה מסתכלת על הלוגו
+    const viewThreshold = 0.97;
+    
+    // בדיקה ללוגו הימני (המקורי) אם טרם הושמע האודיו שלו
+    if (!logoAudioPlayed) {
+        // חישוב וקטור מהמצלמה ללוגו הימני
+        const directionToRightLogo = new THREE.Vector3().subVectors(rightLogoPosition, camera.position).normalize();
+        const dotProductRight = cameraDirection.dot(directionToRightLogo);
+        
+        // אם המצלמה מסתכלת על הלוגו הימני
+        if (dotProductRight > viewThreshold) {
+            // סימון שהאודיו הושמע כדי שלא יושמע שוב
+            logoAudioPlayed = true;
+            
+            // הפעלת האודיו ונעילת המבט
+            playLogoAudio();
+            
+            console.log(`האודיו הופעל - הלוגו הימני במרכז המבט, דמיון: ${dotProductRight.toFixed(4)}`);
+        }
+    }
+    
+    // בדיקה ללוגו השמאלי אם האודיו הימני כבר הושמע אבל השמאלי טרם הושמע
+    if (logoAudioPlayed && !leftLogoAudioPlayed) {
+        // חישוב וקטור מהמצלמה ללוגו השמאלי
+        const directionToLeftLogo = new THREE.Vector3().subVectors(leftLogoPosition, camera.position).normalize();
+        const dotProductLeft = cameraDirection.dot(directionToLeftLogo);
+        
+        // אם המצלמה מסתכלת על הלוגו השמאלי
+        if (dotProductLeft > viewThreshold) {
+            // סימון שהאודיו השמאלי הושמע
+            leftLogoAudioPlayed = true;
+            
+            // הפעלת האודיו ונעילת המבט שוב
+            playLeftLogoAudio();
+            
+            console.log(`האודיו השמאלי הופעל - הלוגו השמאלי במרכז המבט, דמיון: ${dotProductLeft.toFixed(4)}`);
+        }
+    }
+    
+    // בדיקה ללוגו העליון אם כבר הושמעו האודיו הימני והשמאלי
+    if (logoAudioPlayed && leftLogoAudioPlayed && !topLogoAudioPlayed) {
+        // חישוב וקטור מהמצלמה ללוגו העליון
+        const directionToTopLogo = new THREE.Vector3().subVectors(topLogoPosition, camera.position).normalize();
+        const dotProductTop = cameraDirection.dot(directionToTopLogo);
+        
+        // אם המצלמה מסתכלת על הלוגו העליון
+        if (dotProductTop > viewThreshold) {
+            // סימון שהאודיו העליון הושמע
+            topLogoAudioPlayed = true;
+            
+            // הפעלת האודיו ונעילת המבט שוב
+            playTopLogoAudio();
+            
+            console.log(`האודיו העליון הופעל - הלוגו העליון במרכז המבט, דמיון: ${dotProductTop.toFixed(4)}`);
+        }
+    }
+    
+    // בדיקה ללוגו התחתון אם כבר הושמעו כל האודיו האחרים
+    if (logoAudioPlayed && leftLogoAudioPlayed && topLogoAudioPlayed && !bottomLogoAudioPlayed) {
+        // חישוב וקטור מהמצלמה ללוגו התחתון
+        const directionToBottomLogo = new THREE.Vector3().subVectors(bottomLogoPosition, camera.position).normalize();
+        const dotProductBottom = cameraDirection.dot(directionToBottomLogo);
+        
+        // אם המצלמה מסתכלת על הלוגו התחתון
+        if (dotProductBottom > viewThreshold) {
+            // סימון שהאודיו התחתון הושמע
+            bottomLogoAudioPlayed = true;
+            
+            // הפעלת האודיו ונעילת המבט שוב
+            playBottomLogoAudio();
+            
+            console.log(`האודיו התחתון הופעל - הלוגו התחתון במרכז המבט, דמיון: ${dotProductBottom.toFixed(4)}`);
+        }
+    }
+    
+    // בדיקה אם צריך להפעיל את האודיו של הלוגו בגובה השחקן
+    if (logoAudioPlayed && leftLogoAudioPlayed && topLogoAudioPlayed && bottomLogoAudioPlayed) {
+        // בדיקה אם המשתמש מספיק קרוב ללוגו בגובה השחקן
+        const distanceToPlayerHeightLogo = camera.position.distanceTo(playerHeightLogoPosition);
+        
+        if (distanceToPlayerHeightLogo < 5 && !playerHeightLogoAudioPlayed) {
+            // סימון שהאודיו של הלוגו בגובה השחקן הושמע
+            playerHeightLogoAudioPlayed = true;
+            
+            // הפעלת האודיו ונעילת המבט והתנועה
+            playPlayerHeightLogoAudio();
+            
+            console.log(`האודיו של הלוגו בגובה השחקן הופעל - המשתמש מספיק קרוב, מרחק: ${distanceToPlayerHeightLogo.toFixed(2)}`);
+        }
+    }
+    // בפונקציית checkLogoInView - תיקון בדיקת קרבה ללוגו
+// אחרי הבדיקה של הלוגו התחתון, נוסיף:
+
+// בדיקה אם המשתמש מספיק קרוב ללוגו בגובה השחקן
+if (logoAudioPlayed && leftLogoAudioPlayed && topLogoAudioPlayed && bottomLogoAudioPlayed && !playerHeightLogoAudioPlayed) {
+    // מיקום הלוגו בגובה השחקן
+    const playerHeightLogoPosition = new THREE.Vector3(-20, 1.7, -0.41);
+    
+    // חישוב המרחק מהמשתמש ללוגו
+    const distanceToPlayerHeightLogo = camera.position.distanceTo(playerHeightLogoPosition);
+    console.log(`מרחק מהלוגו בגובה השחקן: ${distanceToPlayerHeightLogo.toFixed(2)}`);
+    
+    // אם המשתמש מספיק קרוב (הקטנו את הסף מ-5 ל-3)
+    if (distanceToPlayerHeightLogo < 3 && !playerHeightLogoAudioPlayed) {
+        // סימון שהאודיו של הלוגו בגובה השחקן הושמע
+        playerHeightLogoAudioPlayed = true;
+        
+        // הפעלת האודיו ונעילת המבט והתנועה
+        playPlayerHeightLogoAudio();
+        
+        console.log(`האודיו של הלוגו בגובה השחקן הופעל - המשתמש מספיק קרוב, מרחק: ${distanceToPlayerHeightLogo.toFixed(2)}`);
+    }
+}
+};
+
+// פונקציה להפעלת האודיו של הלוגו התחתון
+const playBottomLogoAudio = () => {
+    movementLocked = true;
+    if (controls) {
+        controls.activeLook = false;
+        controls.enabled = false;
+    }
+
+    const typewriterContainer = document.getElementById('typewriter-container');
+    if (typewriterContainer) {
+        typewriterContainer.style.display = 'block';
+        typewriterEffect('מושלם!! הגיע הזמן ללכת קצת, השתמשו בחץ קדימה או לחצו לחיצה ארוכה בכפתור השמאלי של העכבר וגשו ללוגו של הטכנודע', 'typewriter-text', 80);
+    }
+
+    // הפעלת קטע וידאו 6
+    loadAndPlayVideo(6);
+
+    const logoSound = new Howl({
+        src: ['tutorial/6.mp3'],
+        volume: 0.8,
+        onend: () => {
+            stopWalking();
+            if (controls) {
+                controls.enabled = true;
+                controls.activeLook = true;
+            }
+            movementLocked = false;
+
+            if (typewriterContainer) {
+                typewriterContainer.style.display = 'none';
+            }
+
+            moveLogoToPlayerHeight();
+        }
+    });
+
+    logoSound.play();
+};
+
+
+// פונקציה להעברת הלוגו למיקום חדש בגובה השחקן
+const moveLogoToPlayerHeight = () => {
+    // מצא את מודל הלוגו במערך המודלים המותאמים אישית
+    const logoModel = customModels.find(model => 
+        model.position.x === -20 && 
+        model.position.y === -3 && 
+        Math.abs(model.position.z - (-0.41)) < 0.1
+    );
+    
+    if (logoModel) {
+        // עדכון מיקום הלוגו - הזזה רחוק יותר וגובה השחקן
+        logoModel.position.set(-40, 1.7, -0.41);
+        
+        // סיבוב הלוגו כך שיפנה לכיוון הדמות
+        logoModel.lookAt(new THREE.Vector3(0, 1.7, 0));
+        
+        console.log('הלוגו הועבר למיקום חדש בגובה השחקן: X: -40, Y: 1.7, Z: -0.41');
+    } else {
+        console.error('לא נמצא מודל הלוגו במיקום התחתון');
+    }
+};
+
+// פונקציה להפעלת האודיו של הלוגו בגובה השחקן
+const playPlayerHeightLogoAudio = () => {
+    movementLocked = true;
+    if (controls) {
+        controls.activeLook = false;
+        controls.enabled = false;
+    }
+
+    stopWalking(); // לעצור תנועה מיידית
+
+    const typewriterContainer = document.getElementById('typewriter-container');
+    if (typewriterContainer) {
+        typewriterContainer.style.display = 'block';
+        typewriterEffect('עכשיו ננסה ללכת אחורה! לחצו על החץ למטה או על הכפתור הימני של העכבר ותראו, אתם הולכים אחורה!', 'typewriter-text', 80);
+    }
+
+    // הפעלת קטע וידאו 7
+    loadAndPlayVideo(7);
+
+    const logoSound = new Howl({
+        src: ['tutorial/7.mp3'],
+        volume: 0.8,
+        onend: () => {
+            stopWalking(); // לוודא הפסקה נוספת
+            if (controls) {
+                controls.enabled = true;
+                controls.activeLook = true;
+            }
+            movementLocked = false;
+
+            if (typewriterContainer) {
+                typewriterContainer.style.display = 'none';
+            }
+        }
+    });
+
+    logoSound.play();
+};
+
+// פונקציה להפעלת האודיו של הלוגו העליון
+const playTopLogoAudio = () => {
+    // נעילת התנועה באופן מוחלט
+    movementLocked = true;
+    
+    // נעילת המבט - ניטרול מוחלט של האפשרות להסתכל סביב
+    if (controls) {
+        // שמירה על המצב הנוכחי
+        controls.activeLook = false;
+        
+        // השבתה מוחלטת של הבקרות
+        controls.enabled = false;
+    }
+    
+    // הצגת הודעת הטקסט מיד
+    const typewriterContainer = document.getElementById('typewriter-container');
+    if (typewriterContainer) {
+        typewriterContainer.style.display = 'block';
+        
+        // הפעל את אפקט מכונת הכתיבה
+        typewriterEffect('כל הכבוד! כעת הסתכלו למטה באמצעות הזזת העכבר לכיוון מטה! חפשו את לוגו הטכנודע', 'typewriter-text', 80);
+    }
+    
+    // הפעלת קטע וידאו 5
+    loadAndPlayVideo(5);
+    
+    // יצירת אובייקט סאונד
+    const logoSound = new Howl({
+        src: ['tutorial/5.mp3'],
+        volume: 0.8,
+        onend: () => {
+            console.log('סיום השמעת אודיו הלוגו העליון');
+            
+            // שחרור המבט והנעילה רק לאחר שהאודיו נגמר
+            if (controls) {
+                controls.enabled = true;
+                controls.activeLook = true;
+            }
+            
+            // הסתרת הודעת הטקסט בסיום האודיו
+            if (typewriterContainer) {
+                typewriterContainer.style.display = 'none';
+            }
+            
+            // העברת הלוגו למיקום חדש למטה
+            moveLogoToBottomPosition();
+        }
+    });
+    
+    // השמע את הקול
+    logoSound.play();
+};
+
+// פונקציה להעברת הלוגו למיקום חדש למטה
+// פונקציה להעברת הלוגו למיקום חדש למטה - תיקון לגובה הדמות
+const moveLogoToBottomPosition = () => {
+    // מצא את מודל הלוגו במערך המודלים המותאמים אישית
+    const logoModel = customModels.find(model => 
+        model.position.x === -20 && 
+        model.position.y === 20 && 
+        Math.abs(model.position.z - (-0.41)) < 0.1
+    );
+    
+    if (logoModel) {
+        // עדכון מיקום הלוגו - שינוי מ-(-3) ל-1.7 (גובה הדמות)
+        logoModel.position.set(-20, 1.7, -0.41);
+        
+        // סיבוב הלוגו כך שיפנה לכיוון הדמות
+        logoModel.lookAt(new THREE.Vector3(0, 1.7, 0));
+        
+        console.log('הלוגו הועבר למיקום החדש בגובה הדמות: X: -20, Y: 1.7, Z: -0.41');
+    } else {
+        console.error('לא נמצא מודל הלוגו במיקום העליון');
+    }
+};
+
+// פונקציה להפעלת האודיו של הלוגו
+// פונקציה להפעלת האודיו של הלוגו
+// פונקציה להפעלת האודיו של הלוגו
+const playLogoAudio = () => {
+    // נעילת התנועה באופן מוחלט
+    movementLocked = true;
+    
+    // נעילת המבט - ניטרול מוחלט של האפשרות להסתכל סביב
+    if (controls) {
+        // שמירה על המצב הנוכחי
+        controls.activeLook = false;
+        
+        // השבתה מוחלטת של הבקרות
+        controls.enabled = false;
+    }
+    
+    // הצגת הודעת הטקסט מיד
+    const typewriterContainer = document.getElementById('typewriter-container');
+    if (typewriterContainer) {
+        typewriterContainer.style.display = 'block';
+        
+        // הפעל את אפקט מכונת הכתיבה
+        typewriterEffect('יופי! עכשיו הסתכלו לצד שמאל! ניחשתם נכון, עליכם להזיז את העכבר לצד שמאל עד שתראו את הלוגו של הטכנודע', 'typewriter-text', 80);
+    }
+    
+    // הפעלת קטע וידאו 3
+    loadAndPlayVideo(3);
+    
+    // יצירת אובייקט סאונד
+    const logoSound = new Howl({
+        src: ['tutorial/3.mp3'],
+        volume: 0.8,
+        onend: () => {
+            console.log('סיום השמעת אודיו הלוגו');
+            
+            // שחרור המבט והנעילה רק לאחר שהאודיו נגמר
+            if (controls) {
+                controls.enabled = true;
+                controls.activeLook = true;
+            }
+            
+            // הסתרת הודעת הטקסט בסיום האודיו
+            if (typewriterContainer) {
+                typewriterContainer.style.display = 'none';
+            }
+            
+            // העברת הלוגו למיקום החדש
+            moveLogoToNewPosition();
+        }
+    });
+    
+    // השמע את הקול
+    logoSound.play();
+};
+
+
+// פונקציה להצגת הודעת טקסט במכונת כתיבה
+// פונקציה להצגת הודעת טקסט במכונת כתיבה
+
+
+// פונקציה להעברת הלוגו למיקום החדש
+const moveLogoToNewPosition = () => {
+    // מצא את מודל הלוגו במערך המודלים המותאמים אישית
+    const logoModel = customModels.find(model => 
+        model.position.x === 20 && 
+        model.position.y === 2 && 
+        Math.abs(model.position.z - (-0.41)) < 0.1
+    );
+    
+    if (logoModel) {
+        // עדכון מיקום הלוגו
+        logoModel.position.set(-20, 2, -0.41);
+        
+        // סיבוב הלוגו כך שיפנה לכיוון הדמות
+        const direction = new THREE.Vector3(0, 0, 0).sub(logoModel.position).normalize();
+        logoModel.lookAt(new THREE.Vector3(0, 2, 0));
+        // סיבוב נוסף אם צריך כדי שהלוגו יהיה בכיוון הנכון
+        logoModel.rotation.y += Math.PI;
+        
+        console.log('הלוגו הועבר למיקום החדש: X: -20, Y: 2, Z: -0.41');
+    } else {
+        console.error('לא נמצא מודל הלוגו במיקום המקורי');
+    }
+};
+// פונקציה להפעלת האודיו של הלוגו השמאלי
+const playLeftLogoAudio = () => {
+    // נעילת התנועה באופן מוחלט
+    movementLocked = true;
+    
+    // נעילת המבט - ניטרול מוחלט של האפשרות להסתכל סביב
+    if (controls) {
+        // שמירה על המצב הנוכחי
+        controls.activeLook = false;
+        
+        // השבתה מוחלטת של הבקרות
+        controls.enabled = false;
+    }
+    
+    // הצגת הודעת הטקסט מיד
+    const typewriterContainer = document.getElementById('typewriter-container');
+    if (typewriterContainer) {
+        typewriterContainer.style.display = 'block';
+        
+        // הפעל את אפקט מכונת הכתיבה
+        typewriterEffect('אלופים! עכשיו זה הזמן להסתכל למעלה, הסתכלו למעלה וחפשו את לוגו הטכנודע!', 'typewriter-text', 80);
+    }
+    
+    // הפעלת קטע וידאו 4
+    loadAndPlayVideo(4);
+    
+    // יצירת אובייקט סאונד
+    const logoSound = new Howl({
+        src: ['tutorial/4.mp3'],
+        volume: 0.8,
+        onend: () => {
+            console.log('סיום השמעת אודיו הלוגו השמאלי');
+            
+            // שחרור המבט והנעילה רק לאחר שהאודיו נגמר
+            if (controls) {
+                controls.enabled = true;
+                controls.activeLook = true;
+            }
+            
+            // הסתרת הודעת הטקסט בסיום האודיו
+            if (typewriterContainer) {
+                typewriterContainer.style.display = 'none';
+            }
+            
+            // העברת הלוגו למיקום חדש למעלה
+            moveLogoToTopPosition();
+        }
+    });
+    
+    // השמע את הקול
+    logoSound.play();
+};
+// פונקציה להעברת הלוגו למיקום חדש למעלה
+// פונקציה להעברת הלוגו למיקום חדש למעלה
+
+// פונקציה לבדיקה אם השחקן הלך אחורה
+// פונקציה לבדיקה אם השחקן הלך אחורה - גרסה משופרת
+// גישה חדשה לזיהוי הליכה אחורה
+
+
+let backwardListenersSet = false;  // מחוץ לפונקציה
+const backwardAutoMoveDuration = 2000; // משך זמן תנועה אחורה (2 שניות)
+
+const checkBackwardMovement = () => {
+    if (walkingBackwardChecked || !playerHeightLogoAudioPlayed || backwardListenersSet) {
+        return;
+    }
+
+    backwardListenersSet = true;
+
+    const backwardCheck = (event) => {
+        if (event.key === 'ArrowDown' || event.key === 's') {
+            walkingBackwardChecked = true;
+            document.removeEventListener('keydown', backwardCheck);
+            document.removeEventListener('mousedown', backwardMouseCheck);
+
+            autoMoveBackward(backwardAutoMoveDuration); // הפעל תנועה אחורה
+        }
+    };
+
+    const backwardMouseCheck = (event) => {
+        if (event.button === 2) {
+            walkingBackwardChecked = true;
+            document.removeEventListener('keydown', backwardCheck);
+            document.removeEventListener('mousedown', backwardMouseCheck);
+
+            autoMoveBackward(backwardAutoMoveDuration); // הפעל תנועה אחורה
+        }
+    };
+
+    document.addEventListener('keydown', backwardCheck);
+    document.addEventListener('mousedown', backwardMouseCheck);
+};
+
+// פונקציה לתנועה אחורה באופן אוטומטי
+const autoMoveBackward = (duration) => {
+    movementLocked = true;
+
+    const moveSpeed = 0.03; // מהירות התנועה האחורית
+    const moveInterval = 16; // אינטרוול התנועה (~60FPS)
+    const totalSteps = duration / moveInterval;
+    let steps = 0;
+
+    const moveIntervalId = setInterval(() => {
+        if (steps >= totalSteps) {
+            clearInterval(moveIntervalId);
+            stopWalking();
+            playFinalAudio(); // הפעל אודיו אחרי התנועה
+            return;
+        }
+
+        const backwardVector = new THREE.Vector3(0, 0, 1).applyQuaternion(camera.quaternion);
+        backwardVector.y = 0;
+        backwardVector.normalize().multiplyScalar(moveSpeed);
+
+        camera.position.add(backwardVector);
+
+        steps++;
+    }, moveInterval);
+};
+
+
+// פונקציה להעברת הלוגו למיקום חדש למעלה - הגבהה נוספת
+const moveLogoToTopPosition = () => {
+    // מצא את מודל הלוגו במערך המודלים המותאמים אישית
+    const logoModel = customModels.find(model => 
+        model.position.x === -20 && 
+        model.position.y === 2 && 
+        Math.abs(model.position.z - (-0.41)) < 0.1
+    );
+    
+    if (logoModel) {
+        // עדכון מיקום הלוגו - הגדלת ערך ה-Y מ-15 ל-20
+        logoModel.position.set(-20, 20, -0.41);
+        
+        // סיבוב הלוגו כך שיפנה למטה לכיוון הדמות
+        logoModel.lookAt(new THREE.Vector3(0, 2, 0));
+        
+        console.log('הלוגו הועבר למיקום החדש למעלה: X: -20, Y: 20, Z: -0.41');
+    } else {
+        console.error('לא נמצא מודל הלוגו במיקום השמאלי');
+    }
+};
+
+// עדכון המיקום הקבוע של הלוגו העליון בפונקציית checkLogoInView
+// בתוך הפונקציה יש לשנות את השורה שמגדירה את מיקום הלוגו העליון:
+const topLogoPosition = new THREE.Vector3(-20, 20, -0.41); // שינוי מ-15 ל-20
+// פונקציה להפעלת האודיו הסופי
+let finalAudioPlayed = false;
+
+const playFinalAudio = () => {
+    if (finalAudioPlayed) return;
+    finalAudioPlayed = true;
+
+    movementLocked = true;
+
+    if (controls) {
+        controls.activeLook = false;
+        controls.enabled = false;
+    }
+
+    stopWalking();
+
+    const typewriterContainer = document.getElementById('typewriter-container');
+    if (typewriterContainer) {
+        typewriterContainer.style.display = 'block';
+        typewriterEffect('יופי! עכשיו אתם מוכנים להתחיל במסע חפשו את המעבר הסגול והיכנסו אליו!', 'typewriter-text', 80);
+    }
+
+    // הפעלת קטע וידאו 8 (אם קיים)
+    loadAndPlayVideo(8);
+
+    const finalSound = new Howl({
+        src: ['tutorial/8.mp3'],
+        volume: 0.8,
+        onend: () => {
+            if (controls) {
+                controls.enabled = true;
+                controls.activeLook = true;
+            }
+            movementLocked = false;
+
+            if (typewriterContainer) {
+                typewriterContainer.style.display = 'none';
+            }
+
+            isPortalVisible = true;
+            if (portalParticles) {
+                portalParticles.visible = true;
+            }
+
+            const portalLight = scene.getObjectByName('portalLight');
+            if (portalLight) {
+                portalLight.visible = true;
+            }
+
+            hideTechnodaLogo(); // העלמת הלוגו בסיום
+        }
+    });
+
+    finalSound.play();
+};
+// פונקציה להעלמת לוגו הטכנודע
+const hideTechnodaLogo = () => {
+    customModels.forEach(model => {
+        scene.remove(model);
+    });
+    
+    // הסתר את נגן הוידאו בסיום
+    hideVideoContainer();
+};
+
+// פונקציה לאיפוס מצב ההליכה
+const stopWalking = () => {
+    if (walkSound && walkSound.playing()) {
+        walkSound.pause();
+        isWalking = false;
+    }
+    // איפוס פנימי של FirstPersonControls
+    if (controls) {
+        controls.moveForward = false;
+        controls.moveBackward = false;
+    }
+};
+document.addEventListener('mousedown', (e) => {
+    if ((e.button === 0 || e.button === 2) && !isWalking && !movementLocked && controls && controls.enabled) {
+        walkSound.play();
+        isWalking = true;
+    }
+});
+
+// מאזין לשחרור כפתור עכבר
+document.addEventListener('mouseup', (e) => {
+    if ((e.button === 0 || e.button === 2)) {
+        stopWalking();
+    }
+});
+// פונקציה לטעינת והצגת קטע וידאו
+// פונקציה לטעינת והצגת קטע וידאו
+const loadAndPlayVideo = (clipNumber) => {
+    const videoContainer = document.getElementById('tutorial-video-container');
+    const video = document.getElementById('tutorial-video');
+    
+    if (!video) return;
+    
+    // עדכון מקור הוידאו
+    video.src = `tutorial/${clipNumber}.mp4`;
+    currentVideoClip = clipNumber;
+    
+    // הצגת מכל הוידאו
+    videoContainer.style.display = 'block';
+    
+    // אירוע טעינת הוידאו
+    video.onloadedmetadata = () => {
+        // הפעלת הוידאו
+        video.play().catch(error => {
+            console.warn('לא ניתן להפעיל את הוידאו באופן אוטומטי:', error);
+        });
+    };
+    
+    // כאשר הוידאו נגמר, הוא פשוט חוזר ומתנגן שוב (לופ)
+    video.loop = true;
+    
+    // טיפול בשגיאת טעינת וידאו
+    video.onerror = () => {
+        console.error(`שגיאה בטעינת וידאו ${clipNumber}.mp4`);
+        // כדאי לא להסתיר את המכל במקרה של שגיאה, אלא רק להציג הודעה או לוגו חלופי
+        // videoContainer.style.display = 'none';
+    };
+    
+    console.log(`נטען וידאו הדרכה מספר ${clipNumber}`);
+};
+const init = () => {
+    setupLighting();
+    createGround();
+    const backgroundMusic = setupBackgroundMusic();
+    setupFirstPersonControls();
+    setupWalkSound();
+    createPortalEffect();
+    loadGLB();
+    loadTechnodaModels();
+
+    // שמור את כיוון המבט ההתחלתי (Quaternion)
+    // קביעת זווית המצלמה להתחלה לפני שמירת ה-quaternion
+    if (controls) {
+        controls.lon = 0;
+        controls.lat = -60;  // יותר כלפי מטה
+        controls.phi = Math.PI/2 - THREE.MathUtils.degToRad(-60);
+        controls.theta = THREE.MathUtils.degToRad(0);
+        controls.update(0);  // חשוב! עדכון מיידי של הבקרות
+    }
+    
+    // שמירת המצב המעודכן
+    initialCameraQuaternion = camera.quaternion.clone();
+
+    setupVideoModal();
+    animate();
+};
+        
+        // פונקציה לטעינת מודל הטכנודע במספר מקומות
+        const loadTechnodaModels = () => {
+    const technodaPath = '3d/technoda.glb';
+    
+    // טעינת הלוגו
+    const loader = new THREE.GLTFLoader();
+    loader.load(
+        technodaPath,
+        (gltf) => {
+            const logoModel = gltf.scene;
+            
+            // הגדרת צללים
+            logoModel.traverse((node) => {
+                if (node.isMesh) {
+                    node.castShadow = true;
+                    node.receiveShadow = true;
+                }
+            });
+            
+            // סקאלה מתאימה ללוגו
+            const scale = 2.0;  // גודל גדול יותר כדי שיהיה בולט
+            logoModel.scale.set(scale, scale, scale);
+            
+            // מיקום קבוע בנקודות שהתבקשנו
+            logoModel.position.set(20, 2, -0.41);
+            
+            // סיבוב הלוגו כך שיפנה לכיוון הדמות מההתחלה
+            // חישוב הכיוון לדמות (0,0,0)
+            const direction = new THREE.Vector3(0, 0, 0).sub(logoModel.position).normalize();
+            logoModel.lookAt(new THREE.Vector3(0, 2, 0));
+            // סיבוב נוסף אם צריך כדי שהלוגו יהיה בכיוון הנכון
+            logoModel.rotation.y += Math.PI;
+            
+            // שמירת המודל במערך המודלים המותאמים אישית
+            customModels.push(logoModel);
+            
+            // הוספה לסצנה
+            scene.add(logoModel);
+            
+            console.log('לוגו הטכנודע נטען בהצלחה במיקום קבוע: X: 20, Y: 2, Z: -0.41');
+        },
+        (xhr) => {
+            console.log(`טעינת לוגו הטכנודע: ${Math.round((xhr.loaded / xhr.total) * 100)}%`);
+        },
+        (error) => {
+            console.error('שגיאה בטעינת לוגו הטכנודע:', error);
+        }
+    );
+};
+        
+        // פונקציית אנימציה
+// פונקציית אנימציה
+// פונקציית אנימציה
+// פונקציית אנימציה
+const animate = () => {
+    requestAnimationFrame(animate);
+    
+    if (isLoaded) {
+        const delta = clock.getDelta();
+        
+        if (controls) {
+            // שמירת המיקום הקודם לפני העדכון
+            const previousPosition = camera.position.clone();
+            
+            if (controls.enabled) {
+                // שמירת המראה הנוכחי אם המבט נעול
+                if (!controls.activeLook) {
+                    // שמירת הנתונים של המבט הנוכחי
+                    const currentLon = controls.lon;
+                    const currentLat = controls.lat;
+                    const currentPhi = controls.phi;
+                    const currentTheta = controls.theta;
+                    
+                    // עדכון כל הבקרות
+                    controls.update(delta);
+                    
+                    // החזרת המבט הקודם (ביטול שינויי מבט)
+                    controls.lon = currentLon;
+                    controls.lat = currentLat;
+                    controls.phi = currentPhi;
+                    controls.theta = currentTheta;
+                    
+                    // ביטול תנועה
+                    camera.position.copy(previousPosition);
+                } else if (movementLocked) {
+                    // במצב שבו המבט לא נעול אבל התנועה כן
+                    const currentPosition = camera.position.clone();
+                    controls.update(delta);
+                    camera.position.copy(currentPosition);
+                    
+                    // בדיקה אם המצלמה מסתכלת על הלוגו (גם במצב נעילת תנועה)
+                    checkLogoInView();
+                } else {
+                    // עדכון רגיל כאשר הכל משוחרר
+                    controls.update(delta);
+                    
+                    if (checkTreeCollisions(camera.position)) {
+                        camera.position.copy(previousPosition);
+                    }
+                    
+                    // בדיקה אם המצלמה מסתכלת על הלוגו
+                    checkLogoInView();
+                    
+                    // בדיקת תנועה אחורה - הוסף את זה רק אם האודיו של הלוגו בגובה השחקן כבר הושמע
+                    if (playerHeightLogoAudioPlayed && !walkingBackwardChecked && !movementLocked) {
+    checkBackwardMovement();
+}
+                }
+                
+                // המשך הקוד כרגיל...
+                const groundHeight = getGroundHeight(camera.position.x, camera.position.z);
+                camera.position.y = groundHeight + PLAYER_HEIGHT;
+                
+                // בדיקות נוספות
+                checkInteractionPoint();
+                checkCustomLocationPoints(camera.position);
+            }
+        }
+        
+        animatePortal();
+    }
+    
+    renderer.render(scene, camera);
+};
+        
+        // הפעלת האתחול כשהדף נטען
+        window.addEventListener('load', init);
+    </script>

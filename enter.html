@@ -1,0 +1,2486 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>עולם תלת מימדי עם Three.js</title>
+    <!-- טעינת ספריות Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/controls/FirstPersonControls.js"></script>
+    <!-- טעינת ספריית Audio -->
+    <script src="https://cdn.jsdelivr.net/npm/howler@2.2.3/dist/howler.min.js"></script>
+    
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            cursor: default;
+        }
+        
+        #scene-container {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+        }
+        
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 20px;
+            border-radius: 10px;
+            z-index: 100;
+        }
+        
+        #controls-info {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            color: white;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 14px;
+            z-index: 100;
+        }
+        
+        #next-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #2c3e50;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 200;
+            display: none;
+        }
+        
+        #back-button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 24px;
+            pointer-events: none;
+            z-index: 100;
+        }
+    </style>
+</head>
+<body>
+    <!-- Modal for video -->
+<div id="video-modal" style="
+display: none;
+position: fixed;
+top: 0;
+left: 0;
+width: 100%;
+height: 100%;
+background-color: rgba(0, 0, 0, 0.7);
+z-index: 1000;
+font-family: 'Varela Round', Arial, sans-serif;
+">
+<div style="
+    position: relative;
+    background-color: #000;
+    margin: 5% auto;
+    width: 90%;
+    max-width: 800px;
+    border-radius: 25px;
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+    animation: modalPopIn 0.7s;
+    direction: rtl;
+    border: 8px solid #FF5722;
+">
+    <div style="
+        background: linear-gradient(to left, #FF5722, #FF8A65);
+        color: white;
+        padding: 20px;
+        border-radius: 17px 17px 0 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        position: relative;
+    ">
+        <div style="position: relative; display: inline-block;">
+            <h2 style="margin: 0; font-size: 32px; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); font-weight: bold;">ברוכים הבאים לעולם הארקייד!</h2>
+        </div>
+        <span id="close-video-modal" style="position: absolute; left: 20px; top: 50%; transform: translateY(-50%); color: white; font-size: 36px; font-weight: bold; cursor: pointer;">✖️</span>
+    </div>
+    <div style="padding: 0; background-color: black; border-radius: 0 0 17px 17px;">
+        <video id="intro-video" width="100%" controls style="display: block; border-radius: 0 0 17px 17px;">
+            <source src="vid/3.mp4" type="video/mp4">
+            הדפדפן שלך לא תומך בתגית וידאו.
+        </video>
+    </div>
+</div>
+</div>
+
+<style>
+@keyframes modalPopIn {
+0% { transform: scale(0.5); opacity: 0; }
+50% { transform: scale(1.05); opacity: 0.8; }
+100% { transform: scale(1); opacity: 1; }
+}
+</style>
+<!-- Mission popup -->
+<!-- Mission popup - מוגדל -->
+<div id="mission-popup" style="
+    opacity: 0;
+    position: fixed;
+    top: 15px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 999;
+    width: auto;
+    max-width: 95%;
+    animation: float 3s ease-in-out infinite;
+">
+    <div style="
+        background: linear-gradient(135deg, rgba(230, 250, 240, 0.9), rgba(210, 240, 255, 0.95));
+        border: 5px solid #FF5722;
+        border-radius: 20px;
+        padding: 5px;
+        box-shadow: 0 0 20px rgba(255, 87, 34, 0.8), 0 0 35px rgba(0, 0, 0, 0.3);
+    ">
+        <div style="
+            background: rgba(255, 255, 255, 0.85);
+            border-radius: 15px;
+            padding: 15px 25px;
+            display: flex;
+            align-items: center;
+            position: relative;
+            z-index: 1;
+        ">
+            <div style="
+                font-size: 40px;
+                margin-left: 20px;
+                color: #FF5722;
+                text-shadow: 0 0 15px rgba(255, 87, 34, 0.9);
+            ">🎮</div>
+            <div style="text-align: right;">
+                <div style="
+                    color: #333;
+                    font-size: 24px;
+                    font-weight: bold;
+                    text-shadow: 0 0 3px rgba(255, 255, 255, 0.8);
+                ">עליכם לחפש את הכניסה לארקייד, היזהרו בכביש!</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+@keyframes float {
+    0% { transform: translate(-50%, 0px); }
+    50% { transform: translate(-50%, -10px); }
+    100% { transform: translate(-50%, 0px); }
+}
+</style>
+    <div id="scene-container"></div>
+    
+    <div id="loading">טוען את העולם...</div>
+    
+    <div id="controls-info">
+        <p>תנועה קדימה: הקשה על קליק שמאלי בעכבר</p>
+        <p>תנועה אחורה: הקשה על קליק ימני בעכבר</p>
+        <p>מבט: הזיזו את העכבר</p>
+    </div>
+    
+    <div id="crosshair">+</div>
+    
+    <div id="next-screen">
+        <h1>הגעת ליעד!</h1>
+        <p>זהו המסך הבא.</p>
+        <button id="back-button">חזרה לעולם</button>
+    </div>
+    // הוסף את הקוד הבא לחלק ה-HTML, מיד אחרי הדיב #next-screen:
+
+document.body.insertAdjacentHTML('beforeend', `
+<div id="collision-modal" style="
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    font-family: Arial, sans-serif;
+    text-align: center;
+    direction: rtl;
+">
+    <div style="
+        background-color: #fff;
+        padding: 30px;
+        border-radius: 10px;
+        max-width: 400px;
+    ">
+        <h2 style="color: #e74c3c; margin-top: 0;">אוי ואבוי!</h2>
+        <p style="font-size: 18px; margin-bottom: 20px;">המכונית פגעה בכם! נסו שוב.</p>
+        <button id="retry-button" style="
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        ">אישור</button>
+    </div>
+</div>`);
+    
+    <script>
+        // יצירת סצנה, מצלמה ורנדרר
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(-12.86, 10.20, 32.68); // מיקום התחלתי חדש לשחקן
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap; // צללים רכים יותר
+        
+        // הגדרת צבע רקע שמיים כחול
+        renderer.setClearColor(0x6495ED);
+        document.getElementById('scene-container').appendChild(renderer.domElement);
+        
+        // משתנים גלובליים
+        let controls;
+        let worldModel;
+        let isLoaded = false;
+        let clock = new THREE.Clock();
+        let ground; // משתנה לשמירת הרצפה
+        let tunnelObject; // משתנה לשמירת המנהרה
+        let tunnelWalls = []; // מערך לשמירת קולידרים של קירות המנהרה
+        // משתנים גלובליים למכונית
+let carModel;
+let carPath; // מסלול המכונית
+let carProgress = 0; // התקדמות המכונית על המסלול
+const CAR_SPEED = 0.05; // מהירות המכונית (נמוכה = איטית יותר)
+// משתנים גלובליים למונית
+let taxiModel;
+let taxiPath;
+let taxiProgress = 0.5; // נתחיל את המונית במיקום שונה מהמכונית הראשונה
+const TAXI_SPEED = 0.04; // מהירות מעט שונה מהמכונית הראשונה
+        // משתנים לאודיו
+        let walkSound;
+        let isWalking = false;
+        let backgroundMusic; // משתנה למוזיקת רקע
+        let crashSound
+        const PLAYER_HEIGHT = 1.6;
+        // נקודת המעבר המיוחדת למסך הבא
+        const specialPortalPoint = new THREE.Vector3(33.42, PLAYER_HEIGHT, -23.09); // עדכון גובה הפורטל
+        const portalRadius = 6; // רדיוס גדול יותר לאזור הפורטל
+        let portalParticles; // משתנה לשמירת מערכת החלקיקים של הפורטל
+        // הוסף משתנה גלובלי לניהול מצב ההתנגשות
+let isCollisionActive = false;
+const COLLISION_DISTANCE = 1.5; // מרחק ההתנגשות עם כלי רכב
+// משתנים גלובליים לדמויות המשחק
+let marioModel;
+let pacmanModel;
+let sonicModel;
+// משתנים גלובליים נוספים לאנימציית סוניק
+let sonicMixer; // AnimationMixer לסוניק
+let sonicRunAnimation; // האנימציה עצמה
+// פונקציה לבדיקת התנגשות עם כלי רכב
+let sonicRadius = 20; // רדיוס המעגל
+let sonicAngle = 20; // זווית התחלתית
+// משתנים גלובליים לתנועת סוניק
+let sonicPath;
+let sonicProgress = 0;
+const SONIC_SPEED = 0.07; // מהירות גבוהה יותר מהמכוניות כי זה סוניק!
+// משתנים גלובליים לדמויות המאפיה
+let mafia1Model;
+let mafia2Model;
+
+// פונקציה לטעינת דמויות המאפיה
+// הוסף משתנה גלובלי לעקוב אחרי מצב התנועה
+let movingForward = false;
+let movingBackward = false;
+
+// פונקציה לשליטה בתנועה
+const setupMovementControls = () => {
+    // הוספת מאזין לאירוע לחיצה על כפתור העכבר
+    document.addEventListener('mousedown', (e) => {
+        // בדיקה אם לחץ כפתור שמאלי (0)
+        if (e.button === 0) {
+            movingForward = true;
+            if (controls) controls.moveForward = true;
+            
+            if (!isWalking && walkSound) {
+                walkSound.play();
+                isWalking = true;
+            }
+        }
+        // בדיקה אם לחץ כפתור ימני (2)
+        else if (e.button === 2) {
+            movingBackward = true;
+            if (controls) controls.moveBackward = true;
+            
+            if (!isWalking && walkSound) {
+                walkSound.play();
+                isWalking = true;
+            }
+        }
+    });
+    
+    // הוספת מאזין לאירוע שחרור כפתור העכבר
+    document.addEventListener('mouseup', (e) => {
+        // בדיקה אם שוחרר כפתור שמאלי (0)
+        if (e.button === 0) {
+            movingForward = false;
+            if (controls) controls.moveForward = false;
+            
+            // עוצר צליל רק אם גם קדימה וגם אחורה לא פעילים
+            if (isWalking && !movingBackward && walkSound) {
+                walkSound.pause();
+                isWalking = false;
+            }
+        }
+        // בדיקה אם שוחרר כפתור ימני (2)
+        else if (e.button === 2) {
+            movingBackward = false;
+            if (controls) controls.moveBackward = false;
+            
+            // עוצר צליל רק אם גם קדימה וגם אחורה לא פעילים
+            if (isWalking && !movingForward && walkSound) {
+                walkSound.pause();
+                isWalking = false;
+            }
+        }
+    });
+    
+    // עצירת תנועה אוטומטית כשעוזבים את העמוד או עוברים ללשונית אחרת
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            // אם העמוד הוסתר, עצור את כל התנועה
+            if (controls) {
+                controls.moveForward = false;
+                controls.moveBackward = false;
+            }
+            movingForward = false;
+            movingBackward = false;
+            
+            if (isWalking && walkSound) {
+                walkSound.pause();
+                isWalking = false;
+            }
+        }
+    });
+    
+    // עצירת תנועה כשעוזבים את העמוד
+    window.addEventListener('beforeunload', () => {
+        if (controls) {
+            controls.moveForward = false;
+            controls.moveBackward = false;
+        }
+        movingForward = false;
+        movingBackward = false;
+        
+        if (isWalking && walkSound) {
+            walkSound.pause();
+            isWalking = false;
+        }
+    });
+    
+    // מניעת תפריט קליק ימני
+    document.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+    });
+};
+const loadMafiaCharacters = () => {
+    const loader = new THREE.GLTFLoader();
+    
+    // טעינת mafia1
+    loader.load(
+        '3d/mafia1.glb',
+        (gltf) => {
+            mafia1Model = gltf.scene;
+            
+            // הגדרת צללים
+            mafia1Model.traverse((node) => {
+                if (node.isMesh) {
+                    node.castShadow = true;
+                    node.receiveShadow = true;
+                }
+            });
+            
+            // הגדרת גודל
+            mafia1Model.scale.set(2, 2, 2);
+            
+            // מיקום mafia1
+            mafia1Model.position.set(24.59, 1.90, -22.21);
+            
+            // סיבוב אקראי
+            mafia1Model.rotation.y = Math.PI /-2; // 45 מעלות
+            
+            // הוספה לסצנה
+            scene.add(mafia1Model);
+            console.log('mafia1 נטען בהצלחה');
+        },
+        (xhr) => {
+            console.log('טעינת mafia1: ' + (xhr.loaded / xhr.total * 100) + '% טעון');
+        },
+        (error) => {
+            console.error('שגיאה בטעינת mafia1:', error);
+        }
+    );
+    
+    // טעינת mafia2
+    loader.load(
+        '3d/mafia2.glb',
+        (gltf) => {
+            mafia2Model = gltf.scene;
+            
+            // הגדרת צללים
+            mafia2Model.traverse((node) => {
+                if (node.isMesh) {
+                    node.castShadow = true;
+                    node.receiveShadow = true;
+                }
+            });
+            
+            // הגדרת גודל
+            mafia2Model.scale.set(2, 2, 2);
+            
+            // מיקום mafia2
+            mafia2Model.position.set(30.04, 1.90, -17.67);
+            
+            // סיבוב - נפנה אותו לכיוון מעט שונה
+            mafia2Model.rotation.y = -Math.PI / 6; // -30 מעלות
+            
+            // הוספה לסצנה
+            scene.add(mafia2Model);
+            console.log('mafia2 נטען בהצלחה');
+        },
+        (xhr) => {
+            console.log('טעינת mafia2: ' + (xhr.loaded / xhr.total * 100) + '% טעון');
+        },
+        (error) => {
+            console.error('שגיאה בטעינת mafia2:', error);
+        }
+    );
+};
+
+const checkVehicleCollisions = () => {
+    if (isCollisionActive) return false; // אם כבר יש התנגשות פעילה, אל תבדוק שוב
+    
+    const playerPosition = camera.position.clone();
+    let hasCollision = false;
+    
+    // בדיקת התנגשות עם המכונית הראשונה
+    if (carModel) {
+        const carPosition = carModel.position.clone();
+        // התעלם מהבדלי גובה לצורך בדיקת ההתנגשות
+        playerPosition.y = 0;
+        carPosition.y = 0;
+        
+        const distanceToCar = playerPosition.distanceTo(carPosition);
+        if (distanceToCar < COLLISION_DISTANCE) {
+            hasCollision = true;
+            console.log('התנגשות עם המכונית!');
+        }
+    }
+    
+    // בדיקת התנגשות עם המונית
+    if (taxiModel) {
+        const taxiPosition = taxiModel.position.clone();
+        // התעלם מהבדלי גובה לצורך בדיקת ההתנגשות
+        playerPosition.y = 0;
+        taxiPosition.y = 0;
+        
+        const distanceToTaxi = playerPosition.distanceTo(taxiPosition);
+        if (distanceToTaxi < COLLISION_DISTANCE) {
+            hasCollision = true;
+            console.log('התנגשות עם המונית!');
+        }
+    }
+    
+    // אם יש התנגשות, הפעל את המודאל והשמע את הצליל
+    if (hasCollision) {
+        // השמעת צליל ההתנגשות
+        if (crashSound) {
+            crashSound.play();
+        }
+        
+        showCollisionModal();
+    }
+    
+    return hasCollision;
+};
+// פונקציה להצגת המודאל כשיש התנגשות
+// פונקציה להצגת המודאל כשיש התנגשות
+const showCollisionModal = () => {
+    isCollisionActive = true;
+    
+    // עצירת הצליל אם מתנגן
+    if (walkSound && isWalking) {
+        walkSound.pause();
+        isWalking = false;
+    }
+    
+    // הנמכת עוצמת המוזיקה באופן זמני
+    if (backgroundMusic && backgroundMusic.playing()) {
+        backgroundMusic.volume(0.2); // הורדת עוצמה ל-20%
+    }
+    
+    // השבתת השליטה
+    if (controls) {
+        controls.enabled = false;
+    }
+    
+    // הצגת המודאל
+    const modal = document.getElementById('collision-modal');
+    modal.style.display = 'flex';
+};
+
+// פונקציה לאיפוס המשחק
+// פונקציה לאיפוס המשחק
+// פונקציה לאיפוס המשחק
+const resetGame = () => {
+    // הסתרת המודאל
+    const modal = document.getElementById('collision-modal');
+    modal.style.display = 'none';
+    
+    // החזרת השחקן לנקודת ההתחלה
+    camera.position.set(-40, PLAYER_HEIGHT, 8.64);
+    
+    // איפוס מצב התנועה
+    movingForward = false;
+    movingBackward = false;
+    if (controls) {
+        controls.moveForward = false;
+        controls.moveBackward = false;
+    }
+    
+    // הפעלת השליטה מחדש
+    if (controls) {
+        controls.enabled = true;
+    }
+    
+    // החזרת עוצמת המוזיקה לרמה המקורית
+    if (backgroundMusic && backgroundMusic.playing()) {
+        backgroundMusic.volume(0.5); // החזרה לעוצמה המקורית
+    }
+    
+    // איפוס דגל ההתנגשות
+    isCollisionActive = false;
+};
+// הוספת מאזין אירועים לכפתור האישור
+document.getElementById('retry-button').addEventListener('click', resetGame);
+        // יצירת פורטל עם חלקיקי עשן סגול
+        const createPortalEffect = () => {
+            // יצירת גיאומטריה לחלקיקים
+            const particleCount = 500;
+            const particleGeometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(particleCount * 3);
+            const colors = new Float32Array(particleCount * 3);
+            
+            // הגדרת עשן במעגל סביב נקודת הפורטל
+            for (let i = 0; i < particleCount; i++) {
+                // מיקום אקראי בתוך ספירה
+                const angle = Math.random() * Math.PI * 2;
+                const radius = Math.random() * portalRadius;
+                const height = Math.random() * 5; // גובה החלקיקים
+                
+                // הוספת רנדומיות קטנה למיקום
+                positions[i * 3] = specialPortalPoint.x + Math.cos(angle) * radius;
+                positions[i * 3 + 1] = specialPortalPoint.y + height;
+                positions[i * 3 + 2] = specialPortalPoint.z + Math.sin(angle) * radius;
+                
+                // צבע סגול עם וריאציות קלות
+                colors[i * 3] = 0.5 + Math.random() * 0.2; // אדום
+                colors[i * 3 + 1] = 0; // ירוק
+                colors[i * 3 + 2] = 0.8 + Math.random() * 0.2; // כחול
+            }
+            
+            particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            particleGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+            
+            // יצירת מטריאל לחלקיקים עם סוג ערבוב (Blending) מתאים לעשן
+            const particleMaterial = new THREE.PointsMaterial({
+                size: 0.4,
+                transparent: true,
+                opacity: 0.6,
+                vertexColors: true,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false,
+                sizeAttenuation: true
+            });
+            
+            // יצירת המערכת חלקיקים
+            portalParticles = new THREE.Points(particleGeometry, particleMaterial);
+            scene.add(portalParticles);
+            
+            // הוספת אור נקודתי סגול באזור הפורטל
+            const portalLight = new THREE.PointLight(0x9932CC, 1, 10);
+            portalLight.position.copy(specialPortalPoint);
+            portalLight.position.y += 1.5; // הרמת האור מעט
+            scene.add(portalLight);
+        };
+        
+        // אנימציה לפורטל
+        const animatePortal = () => {
+            if (portalParticles) {
+                const positions = portalParticles.geometry.attributes.position.array;
+                
+                for (let i = 0; i < positions.length; i += 3) {
+                    // תנועה אקראית קלה
+                    positions[i] += (Math.random() - 0.5) * 0.05;
+                    positions[i + 1] += Math.random() * 0.05; // תנועה קלה למעלה
+                    positions[i + 2] += (Math.random() - 0.5) * 0.05;
+                    
+                    // החזר חלקיקים שיצאו חזרה לאזור הפורטל
+                    const dx = positions[i] - specialPortalPoint.x;
+                    const dz = positions[i + 2] - specialPortalPoint.z;
+                    const distance = Math.sqrt(dx * dx + dz * dz);
+                    
+                    if (distance > portalRadius || positions[i + 1] > specialPortalPoint.y + 5) {
+                        // אם החלקיק יצא מהגבולות, החזר אותו למיקום חדש בתוך הפורטל
+                        const angle = Math.random() * Math.PI * 2;
+                        const radius = Math.random() * portalRadius * 0.7;
+                        
+                        positions[i] = specialPortalPoint.x + Math.cos(angle) * radius;
+                        positions[i + 1] = specialPortalPoint.y + Math.random() * 2.5;
+                        positions[i + 2] = specialPortalPoint.z + Math.sin(angle) * radius;
+                    }
+                }
+                
+                portalParticles.geometry.attributes.position.needsUpdate = true;
+            }
+        };
+        
+        // פונקציה לבדיקת מיקום חדש ומעבר למסך הבא
+// פונקציה לבדיקת מיקום חדש ומעבר למסך הבא
+const checkCustomLocationPoints = (position) => {
+    // בדיקת מרחק מנקודת הפורטל המיוחדת
+    const distanceToPortal = position.distanceTo(specialPortalPoint);
+    
+    if (distanceToPortal < portalRadius / 2) {
+        // עצירת התנועה והצליל לפני מעבר דף
+        if (controls) {
+            controls.moveForward = false;
+            controls.moveBackward = false;
+        }
+        movingForward = false;
+        movingBackward = false;
+        
+        // עצירת המוזיקה לפני המעבר לדף אחר
+        if (backgroundMusic && backgroundMusic.playing()) {
+            backgroundMusic.stop();
+        }
+        
+        if (isWalking && walkSound) {
+            walkSound.pause();
+            isWalking = false;
+        }
+        
+        // מעבר לדף games.html
+        window.location.href = 'games.html';
+        return true;
+    }
+    
+    return false;
+};
+        
+        // קבוע גובה השחקן מעל האדמה
+        
+        
+        // תאורה ואפקטים
+        const setupLighting = () => {
+            // אור סביבה
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+            scene.add(ambientLight);
+            
+            // אור השמש הראשי
+            const sunLight = new THREE.DirectionalLight(0xfffaf0, 1.0);
+            sunLight.position.set(10, 20, 15);
+            sunLight.castShadow = true;
+            
+            // הגדרות צל איכותיות יותר
+            sunLight.shadow.mapSize.width = 2048;
+            sunLight.shadow.mapSize.height = 2048;
+            sunLight.shadow.camera.near = 0.5;
+            sunLight.shadow.camera.far = 50;
+            sunLight.shadow.camera.left = -20;
+            sunLight.shadow.camera.right = 20;
+            sunLight.shadow.camera.top = 20;
+            sunLight.shadow.camera.bottom = -20;
+            sunLight.shadow.bias = -0.0003;
+            
+            scene.add(sunLight);
+            
+            // נקודת אור משנית לתאורת מילוי
+            const fillLight = new THREE.DirectionalLight(0xc2d1ff, 0.5);
+            fillLight.position.set(-10, 10, -10);
+            scene.add(fillLight);
+            
+            // אור נקודתי עדין במרכז הסצנה
+            const pointLight = new THREE.PointLight(0xffedbe, 0.5, 20);
+            pointLight.position.set(0, 12, 0);
+            scene.add(pointLight);
+            
+            // ערפל לתחושת עומק
+            scene.fog = new THREE.FogExp2(0x8eb5e0, 0.006); // הקטנת ערך הצפיפות לגובה הגדול יותר
+        };
+        
+        // יצירת טקסטורת רצפה בסגנון כביש
+// יצירת טקסטורת רצפה בסגנון כביש ללא סימונים
+// יצירת טקסטורת רצפה בסגנון רחוב ישן עם מרצפות מלבניות בגוון חום כהה
+function createRoadTexture() {
+  const textureSize = 1024;
+  const canvas = document.createElement('canvas');
+  canvas.width = textureSize;
+  canvas.height = textureSize;
+  const ctx = canvas.getContext('2d');
+  
+  // צבע רקע אספלט כהה
+  ctx.fillStyle = '#222222';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  
+  // הוספת טקסטורת אספלט
+  for (let i = 0; i < 5000; i++) {
+    const x = Math.random() * canvas.width;
+    const y = Math.random() * canvas.height;
+    const size = Math.random() * 2 + 0.5;
+    
+    // אבנים קטנות באספלט
+    ctx.fillStyle = `rgba(${40 + Math.random() * 30}, ${40 + Math.random() * 30}, ${40 + Math.random() * 30}, 0.3)`;
+    ctx.beginPath();
+    ctx.arc(x, y, size, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  
+  // הוספת סדקים קטנים
+  for (let i = 0; i < 50; i++) {
+    const x = Math.random() * canvas.width;
+    const y = Math.random() * canvas.height;
+    const length = 10 + Math.random() * 30;
+    const angle = Math.random() * Math.PI * 2;
+    
+    ctx.strokeStyle = `rgba(40, 40, 40, ${Math.random() * 0.5 + 0.2})`;
+    ctx.lineWidth = Math.random() * 1 + 0.5;
+    
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + Math.cos(angle) * length, y + Math.sin(angle) * length);
+    ctx.stroke();
+  }
+  
+  // הוספת קווי שוליים צהובים
+  const borderWidth = canvas.width * 0.05; // 5% מרוחב הכביש לכל צד
+  
+  // שוליים צהובים בצדדים
+  ctx.fillStyle = '#FFCC00';
+  // שוליים שמאל
+  ctx.fillRect(0, 0, borderWidth, canvas.height);
+  // שוליים ימין
+  ctx.fillRect(canvas.width - borderWidth, 0, borderWidth, canvas.height);
+  
+  // הוספת פסי מעבר חצייה
+  const crossingWidth = canvas.width * 0.6; // רוחב מעבר החצייה
+  const crossingOffset = (canvas.width - crossingWidth) / 2; // מרחק מהצד
+  const stripeCount = 7; // מספר הפסים
+  const stripeWidth = crossingWidth / (stripeCount * 2 - 1); // רוחב כל פס
+  
+  // ציור פסי מעבר החצייה
+  ctx.fillStyle = 'white';
+  for (let i = 0; i < stripeCount; i++) {
+    const x = crossingOffset + i * stripeWidth * 2;
+    const y = canvas.height * 0.4; // מיקום אנכי של מעבר החצייה
+    const height = canvas.height * 0.2; // גובה מעבר החצייה
+    
+    ctx.fillRect(x, y, stripeWidth, height);
+  }
+  
+  // הוספת קו לבן מקווקו באמצע
+  ctx.strokeStyle = 'white';
+  ctx.lineWidth = borderWidth * 0.8;
+  ctx.setLineDash([canvas.height / 15, canvas.height / 15]); // קווים מקווקווים
+  
+  ctx.beginPath();
+  ctx.moveTo(canvas.width / 2, 0);
+  ctx.lineTo(canvas.width / 2, canvas.height);
+  ctx.stroke();
+  
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(1, 5); // חזרות לאורך הכביש
+  
+  return texture;
+}
+
+// פונקציה להוספת טקסטורה לכל אבן
+function addStoneTexture(ctx, x, y, width, height) {
+  // הוספת מרקם לאבן בודדת - חספוס כהה יותר
+  for (let i = 0; i < width * height / 60; i++) {
+    const px = x + Math.random() * width;
+    const py = y + Math.random() * height;
+    const size = Math.random() * 1.5 + 0.5;
+    
+    ctx.fillStyle = `rgba(60, 60, 60, ${Math.random() * 0.3})`;
+    ctx.beginPath();
+    ctx.arc(px, py, size, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function addWearAndTear(ctx, width, height) {
+  // הוספת שחיקה וכתמים
+  for (let i = 0; i < 200; i++) {
+    const x = Math.random() * width;
+    const y = Math.random() * height;
+    const size = 5 + Math.random() * 10;
+    
+    // סוגי כתמים
+    const type = Math.random();
+    let color;
+    
+    if (type < 0.7) {
+      // שחיקה רגילה
+      color = `rgba(50, 50, 50, ${Math.random() * 0.25})`;
+    } else {
+      // כתמים כהים
+      color = `rgba(30, 30, 30, ${Math.random() * 0.3})`;
+    }
+    
+    const gradient = ctx.createRadialGradient(x, y, 0, x, y, size);
+    gradient.addColorStop(0, color);
+    gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.arc(x, y, size, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+function createPavementTexture() {
+  const textureSize = 1024;
+  const canvas = document.createElement('canvas');
+  canvas.width = textureSize;
+  canvas.height = textureSize;
+  const ctx = canvas.getContext('2d');
+  
+  // צבע רקע בגוון הכהה שביקשת
+  ctx.fillStyle = '#050B14';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  
+  // הגדרות אבן משתלבת
+  const tileWidth = 60;
+  const tileHeight = 30;
+  const groutWidth = 3;
+  
+  // ציור תבנית אבנים משתלבות
+  for (let x = 0; x < canvas.width; x += tileWidth) {
+    for (let y = 0; y < canvas.height; y += tileHeight) {
+      // וריאציה קלה בגוון הכהה
+      const variation = Math.random() * 8 - 4;
+      
+      // שימוש בגוון הכהה שביקשת עם וריאציה קלה
+      // מפרידים את הערכים מהקוד הצבע
+      const r = 5 + variation;  // 05 בקוד הצבע
+      const g = 11 + variation; // 0B בקוד הצבע
+      const b = 20 + variation; // 14 בקוד הצבע
+      
+      // צביעת האבן
+      ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+      ctx.fillRect(x + groutWidth/2, y + groutWidth/2,
+                 tileWidth - groutWidth, tileHeight - groutWidth);
+      
+      // הוספת טקסטורה וחספוס לאבן
+      addStoneDarkTexture(ctx, x + groutWidth/2, y + groutWidth/2,
+                     tileWidth - groutWidth, tileHeight - groutWidth);
+    }
+  }
+  
+  // קווי חיבור כהים יותר בין האבנים
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = groutWidth;
+  
+  // קווים אנכיים
+  for (let x = 0; x < canvas.width; x += tileWidth) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, canvas.height);
+    ctx.stroke();
+  }
+  
+  // קווים אופקיים
+  for (let y = 0; y < canvas.height; y += tileHeight) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(canvas.width, y);
+    ctx.stroke();
+  }
+  
+  // הוספת שחיקה וכתמים מותאמים לצבע הכהה
+  addDarkWearAndTear(ctx, canvas.width, canvas.height);
+  
+  // יצירת טקסטורה
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(8, 8); 
+  
+  return texture;
+}
+function addStoneDarkTexture(ctx, x, y, width, height) {
+  // הוספת מרקם לאבן כהה
+  for (let i = 0; i < width * height / 60; i++) {
+    const px = x + Math.random() * width;
+    const py = y + Math.random() * height;
+    const size = Math.random() * 1.5 + 0.5;
+    
+    // מרקם כהה מאוד עם מעט כחול
+    ctx.fillStyle = `rgba(10, 15, 25, ${Math.random() * 0.3})`;
+    ctx.beginPath();
+    ctx.arc(px, py, size, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  
+  // הוספת נקודות מבריקות בודדות לדמוי מינרלים באבן
+  for (let i = 0; i < width * height / 200; i++) {
+    const px = x + Math.random() * width;
+    const py = y + Math.random() * height;
+    const size = Math.random() * 0.8 + 0.2;
+    
+    ctx.fillStyle = `rgba(100, 120, 140, ${Math.random() * 0.2})`;
+    ctx.beginPath();
+    ctx.arc(px, py, size, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function addDarkWearAndTear(ctx, width, height) {
+  // הוספת שחיקה וכתמים מותאמים לצבע כהה מאוד
+  for (let i = 0; i < 200; i++) {
+    const x = Math.random() * width;
+    const y = Math.random() * height;
+    const size = 5 + Math.random() * 10;
+    
+    // סוגי כתמים
+    const type = Math.random();
+    let color;
+    
+    if (type < 0.7) {
+      // שחיקה קלה יותר (גוון כהה מעט יותר בהיר)
+      color = `rgba(20, 25, 30, ${Math.random() * 0.25})`;
+    } else if (type < 0.9) {
+      // כתמים כהים מאוד
+      color = `rgba(0, 0, 5, ${Math.random() * 0.3})`;
+    } else {
+      // כתמים עם גוון כחלחל עדין
+      color = `rgba(10, 20, 40, ${Math.random() * 0.25})`;
+    }
+    
+    const gradient = ctx.createRadialGradient(x, y, 0, x, y, size);
+    gradient.addColorStop(0, color);
+    gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.arc(x, y, size, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+function createPavementAndRoad() {
+  if (ground) {
+    scene.remove(ground); // מחיקת הרצפה הקיימת לגמרי
+  }
+  
+  // נקודות התחלה וסוף הכביש
+  const startPoint = new THREE.Vector3(-18, 0, 36.16);
+  const endPoint = new THREE.Vector3(-29, 0, -32.71);
+  
+  // חישוב כיוון ואורך הכביש
+  const direction = new THREE.Vector3().subVectors(endPoint, startPoint);
+  const roadLength = direction.length();
+  const normalizedDirection = direction.clone().normalize();
+  
+  // יצירת וקטור ניצב לכיוון הכביש
+  const perpendicular = new THREE.Vector3();
+  if (Math.abs(normalizedDirection.y) < 0.99) {
+    perpendicular.set(0, 1, 0);
+  } else {
+    perpendicular.set(1, 0, 0);
+  }
+  perpendicular.cross(normalizedDirection).normalize();
+  
+  // מידות
+  const roadWidth = 12; // רוחב גדול יותר
+  const pavementWidth = 120; // רוחב גדול לרצפת האבן המשתלבת
+  
+  // טקסטורות
+  const pavementTexture = createPavementTexture();
+  const roadTexture = createRoadTexture();
+  
+  // יצירת רצפת אבן משתלבת
+  const pavementGeometry = new THREE.BoxGeometry(pavementWidth, 0.2, pavementWidth);
+  const pavementMaterial = new THREE.MeshStandardMaterial({
+    map: pavementTexture,
+    roughness: 0.9,
+    metalness: 0.1
+  });
+  
+  const pavement = new THREE.Mesh(pavementGeometry, pavementMaterial);
+  pavement.position.y = -0.1; // מיקום בגובה מתחת לכביש
+  pavement.receiveShadow = true;
+  scene.add(pavement);
+  
+  // יצירת הכביש
+  const roadGeometry = new THREE.BoxGeometry(roadWidth, 0.1, roadLength);
+  const roadMaterial = new THREE.MeshStandardMaterial({
+    map: roadTexture,
+    roughness: 0.8,
+    metalness: 0.2
+  });
+  
+  const road = new THREE.Mesh(roadGeometry, roadMaterial);
+  
+  // מיקום הכביש באמצע בין נקודות ההתחלה והסיום
+  const midPoint = new THREE.Vector3().addVectors(startPoint, endPoint).multiplyScalar(0.5);
+  road.position.copy(midPoint);
+  
+  // חישוב הסיבוב סביב ציר Y כדי שהכביש יהיה בכיוון הנכון
+  const angle = Math.atan2(direction.x, direction.z);
+  road.rotation.y = angle;
+  
+  // הרמת הכביש מעט מעל הרצפה למניעת ז-פייטינג
+  road.position.y = 0;
+  
+  road.receiveShadow = true;
+  scene.add(road);
+  
+  return { pavement, road };
+}
+        // יצירת קרקע שטוחה בסגנון כביש
+// יצירת קרקע שטוחה בסגנון כביש
+// יצירת קרקע שטוחה בצורת ריבוע אמיתי
+const createFlatRoadGround = () => {
+    // יצירת ריבוע אמיתי כרצפה
+    const boxWidth = 200;
+    const boxDepth = 200;
+    const boxHeight = 1; // גובה דק מאוד
+    
+    // שימוש ב-BoxGeometry שיוצרת ריבוע מושלם
+    const geometry = new THREE.BoxGeometry(boxWidth, boxHeight, boxDepth);
+    
+    // יצירת המטריאל עם טקסטורת כביש
+    const roadTexture = createRoadTexture();
+    
+    // הגדרת מערך של מטריאלים לכל פאה של הקופסה
+    const materials = [
+        new THREE.MeshStandardMaterial({ color: 0x555555 }), // צד ימין
+        new THREE.MeshStandardMaterial({ color: 0x555555 }), // צד שמאל
+        new THREE.MeshStandardMaterial({ map: roadTexture, roughness: 0.9, metalness: 0.1 }), // למעלה (הרצפה עצמה)
+        new THREE.MeshStandardMaterial({ color: 0x555555 }), // למטה
+        new THREE.MeshStandardMaterial({ color: 0x555555 }), // חזית
+        new THREE.MeshStandardMaterial({ color: 0x555555 })  // גב
+    ];
+    
+    ground = new THREE.Mesh(geometry, materials);
+    
+    // מיקום הרצפה בגובה 0
+    ground.position.y = -0.5; // חצי מהגובה כדי שהחלק העליון יהיה בדיוק בגובה 0
+    ground.receiveShadow = true;
+    scene.add(ground);
+    
+    return ground;
+};
+        
+        // יצירת קולידרים לקירות המנהרה
+        const createTunnelColliders = (startPoint, endPoint, tunnelRadius) => {
+    // ניקוי מערך הקולידרים הקיים
+    tunnelWalls = [];
+    
+    // חישוב הכיוון והאורך של המנהרה
+    const direction = new THREE.Vector3().subVectors(endPoint, startPoint);
+    const tunnelLength = direction.length();
+    
+    // נרמול הכיוון
+    const normalizedDirection = direction.clone().normalize();
+    
+    // יצירת וקטור ניצב לכיוון המנהרה
+    const perpendicular = new THREE.Vector3();
+    if (Math.abs(normalizedDirection.y) < 0.99) {
+        perpendicular.set(0, 1, 0);
+    } else {
+        perpendicular.set(1, 0, 0);
+    }
+    perpendicular.cross(normalizedDirection).normalize();
+    
+    // מספר הקולידרים סביב היקף המנהרה
+    const numColliders = 8;
+    
+    // יצירת קולידרים סביב היקף המנהרה
+    for (let i = 0; i < numColliders; i++) {
+        const angle = (i / numColliders) * Math.PI * 2;
+        
+        // וקטור בכיוון הקולידר הנוכחי
+        const ringVector = perpendicular.clone().applyAxisAngle(normalizedDirection, angle);
+        
+        // נקודות לאורך הקולידר
+        const colliderPoints = [];
+        
+        // מספר הנקודות לאורך המנהרה
+        const numPoints = 4;
+        
+        // יצירת נקודות לאורך המנהרה
+        for (let j = 0; j <= numPoints; j++) {
+            const t = j / numPoints;
+            
+            // נקודה על קו המנהרה
+            const pointOnLine = new THREE.Vector3().lerpVectors(startPoint, endPoint, t);
+            
+            // נקודה על קיר המנהרה
+            const pointOnWall = pointOnLine.clone().add(
+                ringVector.clone().multiplyScalar(tunnelRadius * 0.9) // מעט פנימה מהרדיוס האמיתי
+            );
+            
+            colliderPoints.push(pointOnWall);
+        }
+        
+        // שמירת מידע הקולידר
+        tunnelWalls.push({
+    points: colliderPoints,
+    radius: 0.5 // הגדלה לקולידרים רחבים יותר למנהרה הגדולה
+});
+    }
+};
+        
+        // בדיקת התנגשות עם קירות המנהרה
+        const checkTunnelCollisions = (position) => {
+    // אם אין קירות מנהרה, החזר false תמיד
+    if (!tunnelWalls || tunnelWalls.length === 0) {
+        return false;
+    }
+    
+    // המשך הקוד הקיים אם יש קירות מנהרה
+    // רדיוס השחקן
+    const playerRadius = 0.5;
+    
+    for (const wall of tunnelWalls) {
+        // בדיקת כל מקטע של הקיר
+        for (let i = 0; i < wall.points.length - 1; i++) {
+            // קוד קיים...
+        }
+    }
+    
+    return false;
+};
+        
+        // יצירת צינור/מנהרה שהשחקן יוכל להיכנס אליו
+        const createTunnel = () => {
+    // נקודות התחלה וסיום המנהרה (נקודות חדשות)
+    const startPoint = new THREE.Vector3(-9.63, 13.0, 26.94); // התחלת המנהרה החדשה עם גובה 13
+    const endPoint = new THREE.Vector3(33.19, 13.0, -38.43); // סוף המנהרה החדש עם גובה 13
+    
+    // חישוב הכיוון והאורך של המנהרה
+    const direction = new THREE.Vector3().subVectors(endPoint, startPoint);
+    const tunnelLength = direction.length();
+    
+    // רדיוס הצינור - מוגדל ל-8 מטר
+    const tunnelRadius = 8; // רדיוס חדש
+    // מספר המקטעים לאורך ובהיקף הצינור
+    const radialSegments = 16;
+    const heightSegments = 30;
+    
+    
+    // יצירת גיאומטרית צילינדר פתוח בשני הקצוות
+    const geometry = new THREE.CylinderGeometry(
+        tunnelRadius, // רדיוס עליון
+        tunnelRadius, // רדיוס תחתון
+        tunnelLength, // אורך
+        radialSegments, // מספר מקטעים בהיקף
+        heightSegments, // מספר מקטעים לאורך
+        true // פתוח בשני הקצוות
+    );
+    
+    
+    // יצירת טקסטורה למנהרה בסגנון רטרו סגלגל
+    const createRetroTunnelTexture = () => {
+        const textureSize = 1024;
+        const canvas = document.createElement('canvas');
+        canvas.width = textureSize;
+        canvas.height = textureSize;
+        const ctx = canvas.getContext('2d');
+        
+        // צבע רקע סגול כהה
+        ctx.fillStyle = '#2a1a3a';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // יצירת קווי רשת ניאון בסגנון רטרו
+        const gridSpacing = 64; // מרווח גדול יותר בין קווי הרשת
+        const gridColor = '#9c3fd4'; // סגול ניאוני יותר
+        
+        ctx.strokeStyle = gridColor;
+        ctx.lineWidth = 3;
+        
+        // ציור קווים אופקיים
+        for (let y = 0; y < canvas.height; y += gridSpacing) {
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(canvas.width, y);
+            ctx.stroke();
+            
+            // הוספת אפקט זוהר לקווים
+            ctx.strokeStyle = 'rgba(200, 120, 255, 0.5)';
+            ctx.lineWidth = 6;
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(canvas.width, y);
+            ctx.stroke();
+            
+            // חזרה לסגנון המקורי
+            ctx.strokeStyle = gridColor;
+            ctx.lineWidth = 3;
+        }
+        
+        // ציור קווים אנכיים
+        for (let x = 0; x < canvas.width; x += gridSpacing) {
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, canvas.height);
+            ctx.stroke();
+            
+            // הוספת אפקט זוהר לקווים
+            ctx.strokeStyle = 'rgba(200, 120, 255, 0.5)';
+            ctx.lineWidth = 6;
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, canvas.height);
+            ctx.stroke();
+            
+            // חזרה לסגנון המקורי
+            ctx.strokeStyle = gridColor;
+            ctx.lineWidth = 3;
+        }
+        
+        // הוספת נקודות זוהרות בסגנון כוכבים
+        for (let i = 0; i < 300; i++) {
+            const x = Math.random() * canvas.width;
+            const y = Math.random() * canvas.height;
+            const size = Math.random() * 3 + 1;
+            
+            // צבע זוהר בגוונים של סגול/ורוד
+            const r = 200 + Math.random() * 55;
+            const g = 50 + Math.random() * 100;
+            const b = 200 + Math.random() * 55;
+            
+            // יצירת זוהר בגרדיאנט סביב הנקודה
+            const glow = ctx.createRadialGradient(x, y, 0, x, y, size * 3);
+            glow.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0.8)`);
+            glow.addColorStop(0.5, `rgba(${r}, ${g}, ${b}, 0.3)`);
+            glow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            
+            ctx.fillStyle = glow;
+            ctx.beginPath();
+            ctx.arc(x, y, size * 3, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // נקודה מרכזית בהירה יותר
+            ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+            ctx.beginPath();
+            ctx.arc(x, y, size, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+        // הוספת אלמנטים גיאומטריים רטרו (משולשים/מרובעים) בגדלים שונים
+        for (let i = 0; i < 50; i++) {
+            const x = Math.random() * canvas.width;
+            const y = Math.random() * canvas.height;
+            const size = Math.random() * 30 + 10;
+            
+            // צבע למלא בגווני סגול/ורוד
+            const r = 130 + Math.random() * 50;
+            const g = 20 + Math.random() * 40;
+            const b = 180 + Math.random() * 70;
+            const a = 0.2 + Math.random() * 0.3;
+            
+            ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${a})`;
+            
+            // בחירה אקראית בין משולש ומרובע
+            if (Math.random() > 0.5) {
+                // משולש
+                ctx.beginPath();
+                ctx.moveTo(x, y - size / 2);
+                ctx.lineTo(x - size / 2, y + size / 2);
+                ctx.lineTo(x + size / 2, y + size / 2);
+                ctx.closePath();
+                ctx.fill();
+                
+                // קו תוחם זוהר
+                ctx.strokeStyle = `rgba(255, 200, 255, 0.7)`;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            } else {
+                // מרובע מסובב (יהלום)
+                ctx.beginPath();
+                ctx.moveTo(x, y - size / 2);
+                ctx.lineTo(x + size / 2, y);
+                ctx.lineTo(x, y + size / 2);
+                ctx.lineTo(x - size / 2, y);
+                ctx.closePath();
+                ctx.fill();
+                
+                // קו תוחם זוהר
+                ctx.strokeStyle = `rgba(255, 200, 255, 0.7)`;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+        }
+        
+        // יצירת טקסטורה מהקנבס
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.wrapS = THREE.RepeatWrapping;
+        texture.wrapT = THREE.RepeatWrapping;
+        texture.repeat.set(4, 8); // חזרה שונה באופקי ואנכי
+        
+        return texture;
+    };
+    
+    // יצירת מרקם מנהרה רטרו
+    const tunnelTexture = createRetroTunnelTexture();
+    
+    // יצירת מטריאל לצינור
+    const material = new THREE.MeshStandardMaterial({
+        map: tunnelTexture,
+        roughness: 0.7,
+        metalness: 0.3,
+        side: THREE.DoubleSide, 
+        emissive: new THREE.Color(0x4d0099), // אפקט פליטה בגוון סגול
+        emissiveIntensity: 0.2, // עוצמת הפליטה
+        transparent: false
+    });
+    
+    // יצירת המנהרה
+    const tunnel = new THREE.Mesh(geometry, material);
+    
+    // חישוב והגדרת הסיבוב של המנהרה
+    // הצילינדר מיוצר לאורך ציר ה-Y, אז אנחנו צריכים לסובב אותו
+    // כדי שיהיה בכיוון הנכון
+    
+    // חישוב הנורמל של הכיוון
+    direction.normalize();
+    
+    // הגדרת וקטור ייחוס - בדרך כלל ציר ה-Y
+    const yAxis = new THREE.Vector3(0, 1, 0);
+    
+    // חישוב הקווטרניון להסתובבות מציר ה-Y לכיוון שלנו
+    const quaternion = new THREE.Quaternion().setFromUnitVectors(yAxis, direction);
+    tunnel.setRotationFromQuaternion(quaternion);
+    
+    // מיקום המנהרה - באמצע בין נקודת ההתחלה והסיום
+    const midPoint = new THREE.Vector3().addVectors(startPoint, endPoint).multiplyScalar(0.5);
+    tunnel.position.copy(midPoint);
+    
+    // הוספת צללים
+    tunnel.castShadow = true;
+    tunnel.receiveShadow = true;
+    
+    // הוספת המנהרה לסצנה
+    scene.add(tunnel);
+    
+    // שמירת המנהרה למשתנה הגלובלי
+    tunnelObject = tunnel;
+    
+    // יצירת קולידרים לקירות המנהרה
+    createTunnelColliders(startPoint, endPoint, tunnelRadius);
+    
+    // הוספת אורות בתוך המנהרה בסגנון רטרו
+    addRetroTunnelLights(tunnel, tunnelLength, startPoint, endPoint);
+    
+    return tunnel;
+};
+const addRetroTunnelLights = (tunnel, tunnelLength, startPoint, endPoint) => {
+    // מספר האורות לאורך המנהרה
+    const numLights = 20; // הגדלנו את מספר האורות לאורך המנהרה הארוכה יותר
+    // חישוב הוקטור בין נקודת ההתחלה לנקודת הסיום
+    const direction = new THREE.Vector3().subVectors(endPoint, startPoint);
+    // מרחק בין האורות
+    const spacing = tunnelLength / numLights;
+    
+    // צבעים ניאון מתחלפים לסגנון רטרו
+    const retroColors = [
+        0xff00ff, // מג'נטה
+        0x9932CC, // סגול כהה
+        0xff1493, // ורוד עמוק
+        0x8a2be2, // כחול-סגול
+        0x9400d3  // סגול כהה
+    ];
+    
+    // יצירת אורות לאורך המנהרה
+    for (let i = 0; i < numLights; i++) {
+        // מיקום האור כנקודה על הקו בין נקודת ההתחלה לנקודת הסיום
+        const ratio = (i * spacing) / tunnelLength;
+        const lightPosition = new THREE.Vector3()
+            .copy(startPoint)
+            .lerp(endPoint, ratio);
+        
+        // הזזת האור לצדדים ולמעלה לאפקט מעניין יותר
+        const offset = 6.5; // הגדלת המרחק מהמרכז להתאים למנהרה הרחבה יותר
+        const side = i % 2 === 0 ? 1 : -1; // צד ימין או שמאל לסירוגין
+        
+        // חישוב וקטור ניצב לכיוון המנהרה
+        const normalizedDirection = direction.clone().normalize();
+        const perpendicular = new THREE.Vector3();
+        
+        if (Math.abs(normalizedDirection.y) < 0.99) {
+            perpendicular.set(0, 1, 0);
+        } else {
+            perpendicular.set(1, 0, 0);
+        }
+        perpendicular.cross(normalizedDirection).normalize();
+        
+        // הזזת האור לצד המתאים של המנהרה ומעט למעלה
+        lightPosition.add(perpendicular.clone().multiplyScalar(side * offset * 0.7));
+        // הגבהת האורות מעט יותר
+        lightPosition.y += 3 + Math.sin(i) * 1.5; // וריאציה גדולה יותר בגובה
+        
+        // אור נקודתי בצבע ניאון
+        const colorIndex = i % retroColors.length;
+        const light = new THREE.PointLight(retroColors[colorIndex], 0.6, 8);
+        light.position.copy(lightPosition);
+        scene.add(light);
+        
+        // גופי תאורה ויזואליים - ספירות קטנות עם אפקט זוהר
+        const bulbGeometry = new THREE.SphereGeometry(0.15, 16, 16);
+        const bulbMaterial = new THREE.MeshBasicMaterial({ 
+            color: retroColors[colorIndex],
+            transparent: true,
+            opacity: 0.9
+        });
+        const bulb = new THREE.Mesh(bulbGeometry, bulbMaterial);
+        bulb.position.copy(light.position);
+        scene.add(bulb);
+        
+        // הוספת הילה מסביב לאור
+        const glowGeometry = new THREE.SphereGeometry(0.3, 16, 16);
+        const glowMaterial = new THREE.MeshBasicMaterial({ 
+            color: retroColors[colorIndex],
+            transparent: true,
+            opacity: 0.3,
+            side: THREE.BackSide
+        });
+        const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+        glow.position.copy(light.position);
+        scene.add(glow);
+        
+        // הוספת ריבועים/מעוינים ניאון בסגנון רטרו לאורך המנהרה
+        if (i % 3 === 0) { // מספר מועט של אלמנטים דקורטיביים
+            const size = 0.5 + Math.random() * 0.3;
+            
+            // יצירת צורה גיאומטרית
+            const shapeGeometry = new THREE.PlaneGeometry(size, size);
+            const shapeMaterial = new THREE.MeshBasicMaterial({ 
+                color: retroColors[(colorIndex + 2) % retroColors.length],
+                transparent: true,
+                opacity: 0.7,
+                side: THREE.DoubleSide
+            });
+            
+            const shape = new THREE.Mesh(shapeGeometry, shapeMaterial);
+            
+            // מיקום הצורה מעט הצידה מהאור
+            const shapePosition = lightPosition.clone();
+            shapePosition.add(perpendicular.clone().multiplyScalar(side * -1 * 0.8)); // צד הפוך מהאור
+            shape.position.copy(shapePosition);
+            
+            // סיבוב אקראי לצורה
+            shape.rotation.z = Math.PI / 4; // סיבוב ב-45 מעלות
+            shape.rotation.y = Math.random() * Math.PI;
+            
+            scene.add(shape);
+        }
+    }
+    
+    // הוספת אור סגול מתפשט באזור הכניסה למנהרה
+    const entranceLight = new THREE.PointLight(0x9400d3, 1, 10);
+    entranceLight.position.copy(startPoint);
+    entranceLight.position.y += 1;
+    scene.add(entranceLight);
+    
+    // הוספת אור סגול מתפשט באזור היציאה מהמנהרה
+    const exitLight = new THREE.PointLight(0xff00ff, 1, 10);
+    exitLight.position.copy(endPoint);
+    exitLight.position.y += 1;
+    scene.add(exitLight);
+};
+
+        // הוספת אורות לאורך המנהרה
+        const addTunnelLights = (tunnel, tunnelLength, startPoint, endPoint) => {
+            // מספר האורות לאורך המנהרה
+            const numLights = 10;
+            // חישוב הוקטור בין נקודת ההתחלה לנקודת הסיום
+            const direction = new THREE.Vector3().subVectors(endPoint, startPoint);
+            // מרחק בין האורות
+            const spacing = tunnelLength / numLights;
+            
+            // יצירת אורות לאורך המנהרה
+            for (let i = 0; i < numLights; i++) {
+                // מיקום האור כנקודה על הקו בין נקודת ההתחלה לנקודת הסיום
+                const ratio = (i * spacing) / tunnelLength;
+                const lightPosition = new THREE.Vector3()
+                    .copy(startPoint)
+                    .lerp(endPoint, ratio);
+                
+                // הזזת האור כלפי מעלה במעט כדי שיהיה מעל ראש השחקן
+                lightPosition.y += 0.5;
+                
+                // אור נקודתי
+                const light = new THREE.PointLight(0xffffcc, 0.3, 5);
+                light.position.copy(lightPosition);
+                scene.add(light);
+                
+                // גופי תאורה ויזואליים - ספירות קטנות
+                const bulbGeometry = new THREE.SphereGeometry(0.1, 8, 8);
+                const bulbMaterial = new THREE.MeshBasicMaterial({ 
+                    color: 0xffffee,
+                    transparent: true,
+                    opacity: 0.8
+                });
+                const bulb = new THREE.Mesh(bulbGeometry, bulbMaterial);
+                bulb.position.copy(light.position);
+                scene.add(bulb);
+            }
+        };
+        
+        // יצירת מערכת שליטה בגוף ראשון
+        const setupFirstPersonControls = () => {
+            controls = new THREE.FirstPersonControls(camera, renderer.domElement);
+            controls.movementSpeed = 4;
+            controls.lookSpeed = 0.03; // הורדת הרגישות מ-0.1 ל-0.05
+            controls.lookVertical = true;
+            controls.constrainVertical = true;
+            controls.verticalMin = Math.PI / 6; // הגבלת מבט למעלה
+            controls.verticalMax = Math.PI / 1.8; // הגבלת מבט למטה
+            
+            // הגדרת אזור מת בקצוות המסך שיעצור את התזוזה
+            const boundaryThreshold = 0.05; // 5% מהקצה (95% מהמסך פעיל)
+            
+            // האזנה לתזוזת העכבר
+            document.addEventListener('mousemove', (e) => {
+                const mouseX = e.clientX / window.innerWidth;
+                const mouseY = e.clientY / window.innerHeight;
+                
+                // בדיקה אם העכבר נמצא באזור המת (קרוב לקצוות)
+                const isNearLeftEdge = mouseX < boundaryThreshold;
+                const isNearRightEdge = mouseX > (1 - boundaryThreshold);
+                const isNearTopEdge = mouseY < boundaryThreshold;
+                const isNearBottomEdge = mouseY > (1 - boundaryThreshold);
+                
+                // עצירת התזוזה אם העכבר בקצוות
+                if (isNearLeftEdge || isNearRightEdge || isNearTopEdge || isNearBottomEdge) {
+                    if (controls.activeLook !== false) {
+                        controls.activeLook = false;
+                    }
+                } else {
+                    if (controls.activeLook !== true) {
+                        controls.activeLook = true;
+                    }
+                }
+            });
+        };
+        
+        // טעינת מודל GLB (רק tunnel.glb)
+        const loadTunnelModel = () => {
+    const loader = new THREE.GLTFLoader();
+    
+    // הצגת הודעת טעינה
+    document.getElementById('loading').style.display = 'block';
+    document.getElementById('loading').textContent = 'טוען את המודל...';
+    
+    loader.load(
+        '3d/enterance.glb',
+        (gltf) => {
+            const model = gltf.scene;
+            
+            // הגדרת צללים לכל המשים במודל
+            model.traverse((node) => {
+                if (node.isMesh) {
+                    node.castShadow = true;
+                    node.receiveShadow = true;
+                    
+                    // היפוך הנורמלים אם זה לא מודל שהועלה על-ידי המשתמש
+
+                }
+            });
+            
+            // שמירה על הסקייל והמיקום המקוריים של המודל
+            model.scale.set(15, 7, 10);
+            model.position.set(0, 10, 0); // שמירה על הגובה המקורי
+            
+            // שמירת המודל למשתנה הגלובלי
+            worldModel = model;
+            
+            scene.add(model);
+document.getElementById('loading').style.display = 'none';
+isLoaded = true;
+
+// הפעלת המוזיקה כשהמודל נטען
+if (backgroundMusic && !backgroundMusic.playing()) {
+    backgroundMusic.play();
+    console.log('מוזיקת רקע הופעלה');
+}
+        },
+        (xhr) => {
+            const percentComplete = (xhr.loaded / xhr.total) * 100;
+            document.getElementById('loading').textContent = 
+                `טוען את המודל... ${Math.round(percentComplete)}%`;
+        },
+        (error) => {
+            console.error('שגיאה בטעינת המודל:', error);
+            document.getElementById('loading').style.display = 'none';
+            isLoaded = true;
+        }
+    );
+};
+        
+        // חזרה לעולם
+  // חזרה לעולם
+document.getElementById('back-button').addEventListener('click', () => {
+    document.getElementById('next-screen').style.display = 'none';
+    controls.enabled = true; // הפעלת השליטה מחדש
+    
+    // וודא שהמוזיקה מתנגנת כשחוזרים לעולם
+    if (backgroundMusic && !backgroundMusic.playing()) {
+        backgroundMusic.play();
+    }
+});
+        
+        // התאמת גודל החלון
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            
+            if (controls) {
+                controls.handleResize();
+            }
+        });
+        
+        // הגדרת סאונד להליכה
+// הגדרת סאונד להליכה
+const setupWalkSound = () => {
+    // יצירת אובייקט סאונד להליכה עם האופציה להפעלה חוזרת (loop)
+    walkSound = new Howl({
+        src: ['audio/walk.mp3'],
+        loop: true,
+        volume: 0.7
+    });
+
+            
+            // הוספת מאזין לאירוע לחיצה על כפתור העכבר
+            document.addEventListener('mousedown', (e) => {
+                // בדיקה אם לחץ כפתור שמאלי (0) או ימני (2)
+                if ((e.button === 0 || e.button === 2) && !isWalking) {
+                    walkSound.play();
+                    isWalking = true;
+                }
+            });
+            
+            // הוספת מאזין לאירוע שחרור כפתור העכבר
+            document.addEventListener('mouseup', (e) => {
+                // בדיקה אם שוחרר כפתור שמאלי (0) או ימני (2)
+                if ((e.button === 0 || e.button === 2) && isWalking) {
+                    walkSound.pause();
+                    isWalking = false;
+                }
+            });
+            
+            // מניעת תפריט קליק ימני
+            document.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+            });
+        };
+        // הגדרת מערכת השמעת מוזיקת רקע רנדומלית
+function setupBackgroundMusic() {
+    // מערך של נתיבים לקבצי המוזיקה
+    const musicTracks = [
+        'audio/enter/1.mp3',
+        'audio/enter/2.mp3',
+        'audio/enter/3.mp3',
+        'audio/enter/4.mp3'
+    ];
+    
+    // בחירת שיר אקראי מהמערך
+    const randomTrackIndex = Math.floor(Math.random() * musicTracks.length);
+    const selectedTrack = musicTracks[randomTrackIndex];
+    
+    // יצירת אובייקט סאונד למוזיקת רקע
+    backgroundMusic = new Howl({
+        src: [selectedTrack],
+        loop: true,      // ניגון חוזר
+        volume: 0.5,     // עוצמת שמע (0-1)
+        autoplay: false  // לא להתחיל אוטומטית
+    });
+    
+    console.log(`נבחר שיר רקע: ${selectedTrack}`);
+    
+    // יצירת כפתור השתקת מוזיקה
+    createMusicToggleButton();
+    
+    return backgroundMusic;
+}
+
+// יצירת כפתור השתקת מוזיקה
+function createMusicToggleButton() {
+    // בדיקה אם הכפתור כבר קיים
+    if (document.getElementById('music-toggle')) {
+        return;
+    }
+    
+    // יצירת כפתור השתקת מוזיקה
+    const musicToggleBtn = document.createElement('button');
+    musicToggleBtn.id = 'music-toggle';
+    musicToggleBtn.title = 'השתק/הפעל מוזיקה';
+    musicToggleBtn.textContent = '🔊';
+    musicToggleBtn.style.position = 'absolute';
+    musicToggleBtn.style.top = '10px';
+    musicToggleBtn.style.left = '10px';
+    musicToggleBtn.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+    musicToggleBtn.style.color = 'white';
+    musicToggleBtn.style.border = 'none';
+    musicToggleBtn.style.borderRadius = '5px';
+    musicToggleBtn.style.padding = '5px 10px';
+    musicToggleBtn.style.fontSize = '20px';
+    musicToggleBtn.style.cursor = 'pointer';
+    musicToggleBtn.style.zIndex = '100';
+    
+    document.body.appendChild(musicToggleBtn);
+    
+    // הוספת מאזין אירועים לכפתור
+    musicToggleBtn.addEventListener('click', () => {
+        console.log('כפתור השתקה נלחץ');
+        
+        if (backgroundMusic) {
+            if (backgroundMusic.playing()) {
+                backgroundMusic.pause();
+                musicToggleBtn.textContent = '🔇';
+                console.log('מוזיקה הושתקה');
+            } else {
+                backgroundMusic.play();
+                musicToggleBtn.textContent = '🔊';
+                console.log('מוזיקה הופעלה');
+            }
+        } else {
+            console.error('אובייקט המוזיקה לא נמצא!');
+        }
+    });
+    
+    // הוספת מאזין אירועים למקש M להשתקת/הפעלת המוזיקה
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'm' || e.key === 'M' || e.key === 'מ') {
+            if (backgroundMusic) {
+                if (backgroundMusic.playing()) {
+                    backgroundMusic.pause();
+                    musicToggleBtn.textContent = '🔇';
+                    console.log('מוזיקה הושתקה');
+                } else {
+                    backgroundMusic.play();
+                    musicToggleBtn.textContent = '🔊';
+                    console.log('מוזיקה הופעלה');
+                }
+            }
+        }
+    });
+}
+// טעינת מודל המכונית
+const loadCarModel = () => {
+    const loader = new THREE.GLTFLoader();
+    
+    loader.load(
+        '3d/oldcar.glb',
+        (gltf) => {
+            carModel = gltf.scene;
+            
+            // הגדרת צללים לכל המשים במודל המכונית
+            carModel.traverse((node) => {
+                if (node.isMesh) {
+                    node.castShadow = true;
+                    node.receiveShadow = true;
+                }
+            });
+            
+            // התאמת גודל המכונית - ייתכן שתצטרך לשנות את הערכים האלה
+            carModel.scale.set(2.5, 2.5, 2.5);
+            
+            // סיבוב המכונית לכיוון הנכון (ייתכן שתצטרך להתאים את זה)
+            carModel.rotation.y = Math.PI; // סיבוב ב-180 מעלות
+            
+            // הוספת המכונית לסצנה
+            scene.add(carModel);
+            
+            // יצירת מסלול הנסיעה למכונית
+            createCarPath();
+            
+            console.log('מודל המכונית נטען בהצלחה');
+        },
+        (xhr) => {
+            console.log('טעינת מכונית: ' + (xhr.loaded / xhr.total * 100) + '% טעון');
+        },
+        (error) => {
+            console.error('שגיאה בטעינת מודל המכונית:', error);
+        }
+    );
+};
+// טעינת מודל המונית
+const loadTaxiModel = () => {
+    const loader = new THREE.GLTFLoader();
+    
+    loader.load(
+        '3d/taxi.glb',
+        (gltf) => {
+            taxiModel = gltf.scene;
+            
+            // הגדרת צללים לכל המשים במודל המונית
+            taxiModel.traverse((node) => {
+                if (node.isMesh) {
+                    node.castShadow = true;
+                    node.receiveShadow = true;
+                }
+            });
+            
+            // התאמת גודל המונית
+            taxiModel.scale.set(2.5, 2.5, 2.5);
+            
+            // סיבוב המונית לכיוון הנכון
+            taxiModel.rotation.y = Math.PI ;
+           
+            
+            // הוספת המונית לסצנה
+            scene.add(taxiModel);
+            
+            // יצירת מסלול הנסיעה למונית (נתיב שמאלי)
+            createTaxiPath();
+            
+            console.log('מודל המונית נטען בהצלחה');
+        },
+        (xhr) => {
+            console.log('טעינת מונית: ' + (xhr.loaded / xhr.total * 100) + '% טעון');
+        },
+        (error) => {
+            console.error('שגיאה בטעינת מודל המונית:', error);
+        }
+    );
+};
+// יצירת מסלול הנסיעה של המונית - בנתיב השמאלי
+const createTaxiPath = () => {
+    // נקודות המסלול הבסיסיות
+    const startPoint = new THREE.Vector3(-18, 0, 36.16);
+    const endPoint = new THREE.Vector3(-29, 0, -32.71);
+    
+    // חישוב כיוון הכביש
+    const direction = new THREE.Vector3().subVectors(endPoint, startPoint);
+    
+    // יצירת וקטור ניצב לכיוון הכביש (לכיוון שמאל)
+    const perpendicular = new THREE.Vector3();
+    perpendicular.set(0, 1, 0).cross(direction).normalize();
+    
+    // הסטה שמאלה (המרחק תלוי ברוחב הכביש)
+    const offsetAmount = -2.5; // ערך שלילי להסטה שמאלה
+    const offset = perpendicular.clone().multiplyScalar(offsetAmount);
+    
+    // הוספת ההסטה לנקודות המסלול
+    const leftLaneStart = startPoint.clone().add(offset);
+    const leftLaneEnd = endPoint.clone().add(offset);
+    
+    // יצירת נקודות ביניים עם הסטה לשמאל
+    const midPoint1 = new THREE.Vector3(-20, 0, 20).add(offset);
+    const midPoint2 = new THREE.Vector3(-25, 0, 0).add(offset);
+    const midPoint3 = new THREE.Vector3(-27, 0, -15).add(offset);
+    
+    // יצירת מסלול בצורת עקומת spline בנתיב השמאלי
+    taxiPath = new THREE.CatmullRomCurve3([
+        leftLaneStart,
+        midPoint1,
+        midPoint2,
+        midPoint3,
+        leftLaneEnd
+    ]);
+    
+    // סגירת המסלול לצורך לופ
+    taxiPath.closed = true;
+    
+    // ויזואליזציה של המסלול (אופציונלי)
+    //visualizeTaxiPath();
+};
+
+// ויזואליזציה של מסלול המונית (אופציונלי)
+const visualizeTaxiPath = () => {
+    const points = taxiPath.getPoints(50);
+    const geometry = new THREE.BufferGeometry().setFromPoints(points);
+    const material = new THREE.LineBasicMaterial({ color: 0xffff00 }); // צהוב למסלול המונית
+    
+    const pathLine = new THREE.Line(geometry, material);
+    pathLine.position.y = 0.1; // הרמה קלה מעל הכביש
+    scene.add(pathLine);
+    
+    // הסרת שורה זו במוצר הסופי - זה רק לבדיקה
+    setTimeout(() => {
+        scene.remove(pathLine);
+    }, 10000); // הסרת הויזואליזציה אחרי 10 שניות
+};
+// עדכון מיקום המונית על המסלול
+const updateTaxiPosition = (delta) => {
+    if (!taxiModel || !taxiPath) return;
+    
+    // עדכון התקדמות המונית על המסלול (0-1)
+    taxiProgress -= TAXI_SPEED * delta; // שים לב לסימן מינוס במקום פלוס
+    if (taxiProgress < 0) taxiProgress += 1;
+    
+    // חישוב מיקום נוכחי על המסלול
+    const currentPosition = taxiPath.getPointAt(taxiProgress);
+    
+    // עדכון מיקום המונית
+    taxiModel.position.copy(currentPosition);
+    taxiModel.position.y += 1; // הגבהה כפי שביקשת
+    
+    // חישוב כיוון הנסיעה (טנגנט למסלול)
+    const tangent = taxiPath.getTangentAt(taxiProgress).normalize();
+    
+    // חישוב הסיבוב של המונית לפי כיוון הנסיעה
+    const angle = Math.atan2(tangent.x, tangent.z);
+    
+    // עדכון סיבוב המונית
+    taxiModel.rotation.y = angle + Math.PI; // הוספת PI אם המונית מסתכלת לכיוון הפוך
+};
+// יצירת מסלול הנסיעה של המכונית
+// יצירת מסלול הנסיעה של המכונית - מעודכן לנתיב הימני
+const createCarPath = () => {
+    // נקודות המסלול הבסיסיות
+    const startPoint = new THREE.Vector3(-18, 0, 36.16);
+    const endPoint = new THREE.Vector3(-29, 0, -32.71);
+    
+    // חישוב כיוון הכביש
+    const direction = new THREE.Vector3().subVectors(endPoint, startPoint);
+    
+    // יצירת וקטור ניצב לכיוון הכביש (לכיוון ימין)
+    const perpendicular = new THREE.Vector3();
+    perpendicular.set(0, 1, 0).cross(direction).normalize();
+    
+    // הסטה ימינה (המרחק תלוי ברוחב הכביש)
+    const offsetAmount = 2.5; // התאם לפי הצורך
+    const offset = perpendicular.clone().multiplyScalar(offsetAmount);
+    
+    // הוספת ההסטה לנקודות המסלול
+    const rightLaneStart = startPoint.clone().add(offset);
+    const rightLaneEnd = endPoint.clone().add(offset);
+    
+    // יצירת נקודות ביניים עם הסטה לימין
+    const midPoint1 = new THREE.Vector3(-20, 0, 20).add(offset);
+    const midPoint2 = new THREE.Vector3(-25, 0, 0).add(offset);
+    const midPoint3 = new THREE.Vector3(-27, 0, -15).add(offset);
+    
+    // יצירת מסלול בצורת עקומת spline בנתיב הימני
+    carPath = new THREE.CatmullRomCurve3([
+        rightLaneStart,
+        midPoint1,
+        midPoint2,
+        midPoint3,
+        rightLaneEnd
+    ]);
+    
+    // סגירת המסלול לצורך לופ
+    carPath.closed = true;
+    
+    // ויזואליזציה של המסלול (אופציונלי)
+   // visualizeCarPath();
+};
+
+// ויזואליזציה של מסלול המכונית (אופציונלי)
+// ויזואליזציה משופרת של מסלול המכונית
+const visualizeCarPath = () => {
+    // ויזואליזציה של המסלול בנתיב הימני (אדום)
+    const rightLanePoints = carPath.getPoints(50);
+    const rightLaneGeometry = new THREE.BufferGeometry().setFromPoints(rightLanePoints);
+    const rightLaneMaterial = new THREE.LineBasicMaterial({ color: 0xff0000 });
+    
+    const rightLaneLine = new THREE.Line(rightLaneGeometry, rightLaneMaterial);
+    rightLaneLine.position.y = 0.1; // הרמה קלה מעל הכביש
+    scene.add(rightLaneLine);
+    
+    // הסרת שורה זו במוצר הסופי - זה רק לבדיקה
+    setTimeout(() => {
+        scene.remove(rightLaneLine);
+    }, 10000); // הסרת הויזואליזציה אחרי 10 שניות
+};
+// עדכון מיקום המכונית על המסלול
+const updateCarPosition = (delta) => {
+    if (!carModel || !carPath) return;
+    
+    // עדכון התקדמות המכונית על המסלול (0-1)
+    carProgress += CAR_SPEED * delta;
+    if (carProgress > 1) carProgress -= 1; // לופ המסלול
+    
+    // חישוב מיקום נוכחי על המסלול
+    const currentPosition = carPath.getPointAt(carProgress);
+    
+    // עדכון מיקום המכונית
+    carModel.position.copy(currentPosition);
+    
+    // חישוב כיוון הנסיעה (טנגנט למסלול)
+    const tangent = carPath.getTangentAt(carProgress).normalize();
+    
+    // חישוב הסיבוב של המכונית לפי כיוון הנסיעה
+    // מניחים שהמכונית ב-Z+ מסתכלת קדימה
+    const targetQuaternion = new THREE.Quaternion().setFromUnitVectors(
+        new THREE.Vector3(0, 0, 1),
+        tangent
+    );
+    
+    // סיבוב חלק של המכונית
+    carModel.quaternion.slerp(targetQuaternion, 0.1);
+    carModel.position.y += 1;
+};
+// טעינת הדמויות: מריו, פקמן וסוניק
+const loadGameCharacters = () => {
+    const loader = new THREE.GLTFLoader();
+    
+    // טעינת מריו
+    loader.load(
+        '3d/mario.glb',
+        (gltf) => {
+            marioModel = gltf.scene;
+            
+            // הגדרת צללים
+            marioModel.traverse((node) => {
+                if (node.isMesh) {
+                    node.castShadow = true;
+                    node.receiveShadow = true;
+                }
+            });
+            
+            // הגדרת גודל גדול במיוחד למריו
+            marioModel.scale.set(7, 7, 7);
+            
+            // מיקום מריו
+            marioModel.position.set(0.43, 5.60, 6.16);
+            
+            // הוספה לסצנה
+            scene.add(marioModel);
+            console.log('מריו נטען בהצלחה');
+        },
+        (xhr) => {
+            console.log('טעינת מריו: ' + (xhr.loaded / xhr.total * 100) + '% טעון');
+        },
+        (error) => {
+            console.error('שגיאה בטעינת מריו:', error);
+        }
+    );
+    
+    // טעינת פקמן
+    loader.load(
+        '3d/pacman.glb',
+        (gltf) => {
+            pacmanModel = gltf.scene;
+            
+            // הגדרת צללים
+            pacmanModel.traverse((node) => {
+                if (node.isMesh) {
+                    node.castShadow = true;
+                    node.receiveShadow = true;
+                }
+            });
+            
+            // הגדרת גודל (קטן יותר ממריו)
+            pacmanModel.scale.set(2, 2, 2);
+            
+            // מיקום פקמן
+            pacmanModel.position.set(4.66, 1.60, -19.79);
+            
+            // הוספה לסצנה
+            scene.add(pacmanModel);
+            console.log('פקמן נטען בהצלחה');
+        },
+        (xhr) => {
+            console.log('טעינת פקמן: ' + (xhr.loaded / xhr.total * 100) + '% טעון');
+        },
+        (error) => {
+            console.error('שגיאה בטעינת פקמן:', error);
+        }
+    );
+    
+    // טעינת סוניק
+    // טעינת סוניק
+    // טעינת סוניק
+// עדכון בתוך loadGameCharacters() - החלק של סוניק:
+loader.load(
+    '3d/sonic.glb',
+    (gltf) => {
+        sonicModel = gltf.scene;
+        
+        // הגדרת צללים
+        sonicModel.traverse((node) => {
+            if (node.isMesh) {
+                node.castShadow = true;
+                node.receiveShadow = true;
+            }
+        });
+        
+        // הגדרת גודל
+        sonicModel.scale.set(2, 2, 2);
+        
+        // יצירת מסלול ריצה לסוניק
+        createSonicPath();
+        
+        // המיקום ההתחלתי יעודכן על ידי updateSonicPosition
+        
+        // הוספה לסצנה
+        scene.add(sonicModel);
+        
+        // הגדרת מערכת האנימציה
+        sonicMixer = new THREE.AnimationMixer(sonicModel);
+        
+        // בדיקת האנימציות הזמינות
+        console.log('אנימציות זמינות לסוניק:', gltf.animations);
+        
+        // חיפוש אנימציית runfast
+        gltf.animations.forEach((clip) => {
+            console.log('שם אנימציה:', clip.name);
+            
+            if (clip.name.toLowerCase().includes('run') || 
+                clip.name.toLowerCase().includes('fast') || 
+                clip.name.toLowerCase() === 'runfast') {
+                
+                sonicRunAnimation = sonicMixer.clipAction(clip);
+                sonicRunAnimation.loop = THREE.LoopRepeat;
+                sonicRunAnimation.play();
+                console.log(`הפעלת אנימציית ${clip.name}`);
+            }
+        });
+        
+        // אם לא נמצאה אנימציה ספציפית, הפעל את האנימציה הראשונה
+        if (!sonicRunAnimation && gltf.animations.length > 0) {
+            sonicRunAnimation = sonicMixer.clipAction(gltf.animations[0]);
+            sonicRunAnimation.loop = THREE.LoopRepeat;
+            sonicRunAnimation.play();
+            console.log(`הפעלת אנימציה ראשונה: ${gltf.animations[0].name}`);
+        }
+        
+        console.log('סוניק נטען בהצלחה');
+    },
+    (xhr) => {
+        console.log('טעינת סוניק: ' + (xhr.loaded / xhr.total * 100) + '% טעון');
+    },
+    (error) => {
+        console.error('שגיאה בטעינת סוניק:', error);
+    }
+);}
+
+// אנימציה פשוטה לדמויות - סיבוב על צירן
+// אנימציה לדמויות
+// אנימציה לדמויות
+const animateCharacters = (delta) => {
+    // סיבוב מריו
+    if (marioModel) {
+        marioModel.rotation.y += 0.5 * delta;
+    }
+    
+    // סיבוב פקמן
+    if (pacmanModel) {
+        pacmanModel.rotation.y += 0.7 * delta;
+    }
+    
+    // עדכון אנימציית סוניק
+    if (sonicMixer) {
+        sonicMixer.update(delta);
+    }
+};
+// יצירת מסלול הריצה של סוניק - בצד ימין של הכביש
+// יצירת מסלול הריצה של סוניק
+// יצירת מסלול הריצה של סוניק - קרוב יותר לפקמן
+const createSonicPath = () => {
+    // מיקום של פקמן: (4.66, 1.60, -19.79)
+    const pacmanPosition = new THREE.Vector3(4.66, 0, -19.79);
+    
+    // יצירת מסלול מעגלי סביב פקמן
+    const radius = 6; // רדיוס המסלול
+    const center = pacmanPosition.clone();
+    
+    // נקודות המסלול - כמה נקודות על מעגל סביב פקמן
+    const points = [];
+    const numPoints = 8; // מספר הנקודות במסלול
+    
+    for (let i = 0; i < numPoints; i++) {
+        const angle = (i / numPoints) * Math.PI * 2;
+        const x = center.x + Math.cos(angle) * radius;
+        const z = center.z + Math.sin(angle) * radius;
+        points.push(new THREE.Vector3(x, 0, z));
+    }
+    
+    // יצירת מסלול spline סגור
+    sonicPath = new THREE.CatmullRomCurve3(points);
+    sonicPath.closed = true;
+    
+    console.log("מסלול חדש של סוניק נוצר בהצלחה - קרוב לפקמן");
+};
+// עדכון מיקום סוניק על המסלול
+const updateSonicPosition = (delta) => {
+    if (!sonicModel || !sonicPath) return;
+    
+    // עדכון התקדמות סוניק על המסלול (0-1)
+    sonicProgress += SONIC_SPEED * delta;
+    if (sonicProgress > 1) sonicProgress -= 1;
+    
+    // חישוב מיקום נוכחי על המסלול
+    const currentPosition = sonicPath.getPointAt(sonicProgress);
+    
+    // עדכון מיקום סוניק
+    sonicModel.position.copy(currentPosition);
+    sonicModel.position.y = 0; // שמירה על גובה קבוע
+    
+    // חישוב כיוון הריצה (טנגנט למסלול)
+    const tangent = sonicPath.getTangentAt(sonicProgress).normalize();
+    
+    // חישוב הסיבוב של סוניק לפי כיוון הריצה
+    const angle = Math.atan2(tangent.x, tangent.z);
+    
+    // עדכון סיבוב סוניק
+    sonicModel.rotation.y = angle + Math.PI / 2; // התאמת הסיבוב לכיוון הריצה
+    
+    // עדכון מהירות אנימציה לפי מהירות תנועה
+    if (sonicRunAnimation) {
+        sonicRunAnimation.timeScale = 1.0 + SONIC_SPEED * 10;
+    }
+};
+// אתחול הסצנה
+// פונקציה להצגת מודל הסרטון
+const setupVideoModal = () => {
+    const videoModal = document.getElementById('video-modal');
+    const introVideo = document.getElementById('intro-video');
+    const closeBtn = document.getElementById('close-video-modal');
+    
+    // הצגת המודל אחרי 3 שניות
+    setTimeout(() => {
+        videoModal.style.display = 'flex';
+        
+        // עצירת התנועה
+        if (controls) {
+            controls.moveForward = false;
+            controls.moveBackward = false;
+        }
+        movingForward = false;
+        movingBackward = false;
+        
+        // השבת שליטה בזמן הצגת הסרטון
+        if (controls) {
+            controls.enabled = false;
+        }
+        
+        // השהיית המוזיקה בזמן הסרטון
+        if (backgroundMusic && backgroundMusic.playing()) {
+            backgroundMusic.pause();
+        }
+        
+        if (isWalking && walkSound) {
+            walkSound.pause();
+            isWalking = false;
+        }
+        
+        // הפעלת הסרטון אוטומטית
+        introVideo.play();
+        
+        // הוספת מאזין לסיום הסרטון
+        introVideo.addEventListener('ended', () => {
+            closeVideoAndShowMission();
+        });
+        
+        // הוספת מאזין לכפתור הסגירה
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => {
+                closeVideoAndShowMission();
+            });
+        }
+    }, 3000); // 3 שניות
+};
+
+// פונקציה לסגירת הסרטון והצגת המשימה
+const closeVideoAndShowMission = () => {
+    const videoModal = document.getElementById('video-modal');
+    const introVideo = document.getElementById('intro-video');
+    const missionPopup = document.getElementById('mission-popup');
+    
+    // עצירת הסרטון
+    introVideo.pause();
+    
+    // סגירת המודל
+    videoModal.style.display = 'none';
+    
+    // החזרת השליטה למשתמש
+    if (controls) {
+        controls.enabled = true;
+    }
+    
+    // החזרת המוזיקה
+    if (backgroundMusic && !backgroundMusic.playing()) {
+        backgroundMusic.play();
+    }
+    
+    // הצגת המשימה אחרי שניה
+    setTimeout(() => {
+        if (missionPopup) {
+            missionPopup.style.opacity = '1';
+            missionPopup.style.transition = 'opacity 1.5s ease-out';
+        }
+    }, 1000);
+};
+// טעינת צליל התנגשות
+const setupCrashSound = () => {
+    crashSound = new Howl({
+        src: ['audio/crash.mp3'],
+        volume: 1.0, // עוצמה גבוהה
+        loop: false // אין צורך בלופ
+    });
+};
+// אתחול הסצנה
+const init = () => {
+    // הגדרת תאורה
+    setupLighting();
+    
+    // יצירת קרקע ביחד עם כביש אבן משתלבת
+    createPavementAndRoad();
+    
+    // הגדרת שליטה בגוף ראשון
+    setupFirstPersonControls();
+    
+    // הגדרת סאונד להליכה
+    setupWalkSound();
+    
+    // הגדרת בקרות תנועה
+    setupMovementControls();
+    
+    // הגדרת צליל התנגשות - הוספת שורה זו
+    setupCrashSound();
+    
+    // הגדרת מוזיקת רקע
+    setupBackgroundMusic();
+    
+    // יצירת אפקט פורטל עם עשן סגול
+    createPortalEffect();
+    
+    // מיקום השחקן בנקודת ההתחלה החדשה, אך עם הגובה המעודכן
+    camera.position.set(-40, PLAYER_HEIGHT, 8.64);
+    
+    // טעינת מודל GLB של המנהרה בלבד - לא משנים את הגובה של המודל
+    loadTunnelModel();
+    loadCarModel();
+    loadTaxiModel();
+    loadGameCharacters();
+    loadMafiaCharacters();
+    
+    // הצגת מודל הסרטון
+    setupVideoModal();
+
+    // טיימר לטעינה
+    setTimeout(() => {
+        if (document.getElementById('loading').style.display !== 'none') {
+            document.getElementById('loading').style.display = 'none';
+            isLoaded = true;
+        }
+        
+        // הפעלת המוזיקה מתבצעת בסיום הסרטון
+    }, 5000);
+    
+    // התחלת לולאת האנימציה
+    animate();
+};
+        
+        // פונקציית אנימציה
+// עדכון פונקציית animate
+const animate = () => {
+    requestAnimationFrame(animate);
+    
+    if (isLoaded) {
+        const delta = clock.getDelta();
+        animateCharacters(delta);
+        if (controls && controls.enabled) {
+            // שמירת המיקום הקודם לפני העדכון
+            const previousPosition = camera.position.clone();
+            
+            // עדכון השליטה
+            controls.update(delta);
+            
+            // בדיקת התנגשויות עם קירות המנהרה
+            if (checkTunnelCollisions(camera.position)) {
+                // אם יש התנגשות, חזרה למיקום הקודם
+                camera.position.copy(previousPosition);
+            }
+            
+            // בדיקת התנגשויות עם כלי רכב
+            checkVehicleCollisions();
+            
+            // שמירת גובה קבוע מעל הרצפה
+            camera.position.y = PLAYER_HEIGHT;
+            
+            // הדפסת המיקום הנוכחי של השחקן
+            const positionInfo = `מיקום שחקן: X: ${camera.position.x.toFixed(2)}, Y: ${camera.position.y.toFixed(2)}, Z: ${camera.position.z.toFixed(2)}`;
+            console.log(positionInfo);
+            
+            // הצגת המיקום על המסך
+            if (!window.positionDisplay) {
+                window.positionDisplay = document.createElement('div');
+                window.positionDisplay.style.position = 'absolute';
+                window.positionDisplay.style.bottom = '10px';
+                window.positionDisplay.style.left = '10px';
+                window.positionDisplay.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+                window.positionDisplay.style.color = 'white';
+                window.positionDisplay.style.padding = '5px';
+                window.positionDisplay.style.fontFamily = 'monospace';
+                window.positionDisplay.style.fontSize = '14px';
+                window.positionDisplay.style.borderRadius = '3px';
+                window.positionDisplay.style.zIndex = '1000';
+                document.body.appendChild(window.positionDisplay);
+            }
+            window.positionDisplay.textContent = positionInfo;
+            
+            // בדיקת אם הגענו לנקודת הפורטל
+            checkCustomLocationPoints(camera.position);
+        }
+        
+        // עדכון מיקום המכונית
+        updateCarPosition(delta);
+        
+        // עדכון מיקום המונית
+        updateTaxiPosition(delta);
+        updateSonicPosition(delta);
+
+        // אנימציה לפורטל עם עשן סגול
+        animatePortal();
+    }
+    
+    renderer.render(scene, camera);
+};
+        
+        // הפעלת האתחול כשהדף נטען
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>

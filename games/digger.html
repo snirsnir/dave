@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>דיגר - משחק ארקייד</title>
+    
+    <!-- js-dos CSS -->
+    <link rel="stylesheet" href="https://v8.js-dos.com/latest/js-dos.css">
+    
+    <!-- js-dos JavaScript -->
+    <script src="https://v8.js-dos.com/latest/js-dos.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@400;700&display=swap');
+        
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #000;
+            font-family: 'Heebo', sans-serif;
+            color: #fff;
+        }
+        
+        #start-message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 20px 40px;
+            border-radius: 10px;
+            font-size: 4.5em;
+            font-weight: bold;
+            text-align: center;
+            z-index: 200;
+            animation: blink-message 1s infinite alternate;
+            display: none;
+        }
+        
+        #intro-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            background-color: #000;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(165, 95, 30, 0.1) 0%, transparent 70%),
+                radial-gradient(circle at 90% 80%, rgba(180, 120, 30, 0.1) 0%, transparent 70%);
+            z-index: 10;
+        }
+        
+        #title {
+            color: #b8860b; /* צבע חום-זהוב דיגר */
+            text-align: center;
+            font-size: 2.8em;
+            font-weight: bold;
+            text-shadow: 
+                3px 3px 0 #8b4513, /* צבע חום כהה יותר */
+                -1px -1px 0 #553311,
+                6px 6px 10px rgba(0,0,0,0.5);
+            margin: 15px 0;
+            letter-spacing: 1px;
+            transform: perspective(500px) rotateX(10deg);
+            animation: pulse 2s infinite alternate;
+        }
+        
+        @keyframes pulse {
+            0% { text-shadow: 3px 3px 0 #8b4513, -1px -1px 0 #553311, 6px 6px 10px rgba(0,0,0,0.5); }
+            100% { text-shadow: 4px 4px 0 #a0522d, -1px -1px 0 #553311, 8px 8px 15px rgba(139,69,19,0.7); }
+        }
+        
+        .info-box {
+            width: 80%;
+            max-width: 800px;
+            background-color: rgba(102, 51, 0, 0.8); /* צבע חום */
+            border: 4px solid #cd853f; /* צבע חום בהיר */
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            font-size: 1em;
+            line-height: 1.6;
+            margin: 10px 0;
+            box-shadow: 0 5px 15px rgba(139, 69, 19, 0.3);
+        }
+        
+        .info-box h3 {
+            color: #ffd700; /* צבע זהב */
+            margin-top: 0;
+            font-size: 1.3em;
+            text-shadow: 2px 2px 3px rgba(0,0,0,0.5);
+            border-bottom: 2px solid rgba(255, 204, 0, 0.3);
+            padding-bottom: 8px;
+        }
+        
+        #controls {
+            display: flex;
+            margin: 10px 0;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .control {
+            margin: 10px;
+            background-color: rgba(102, 51, 0, 0.8); /* צבע חום */
+            border: 2px solid #cd853f; /* צבע חום בהיר */
+            border-radius: 5px;
+            padding: 12px 15px;
+            display: flex;
+            align-items: center;
+            box-shadow: 0 3px 5px rgba(0, 0, 0, 0.3);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .control:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 8px rgba(0, 0, 0, 0.4);
+        }
+        
+        .key {
+            background: linear-gradient(to bottom, #ffffff, #dddddd);
+            color: #000;
+            padding: 6px 12px;
+            border-radius: 5px;
+            margin-left: 10px;
+            font-weight: bold;
+            font-family: 'Press Start 2P', cursive;
+            font-size: 0.7em;
+            box-shadow: 
+                0 3px 0 #999,
+                inset 0 1px 0 rgba(255,255,255,0.7);
+            display: inline-block;
+            min-width: 30px;
+            text-align: center;
+        }
+        
+        /* Arcade Machine Styling */
+        #arcade-machine {
+            width: 250px;
+            height: 320px;
+            position: relative;
+            margin-bottom: 30px;
+            perspective: 500px;
+            display: inline-block;
+        }
+        
+        #arcade-coin-section {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: center;
+            margin: 20px 0;
+            /* Position arcade machine on the left */
+            position: absolute;
+            left: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+        
+        #machine-body {
+            width: 100%;
+            height: 270px;
+            background: linear-gradient(135deg, #333 0%, #111 100%);
+            border-radius: 15px 15px 0 0;
+            border: 5px solid #000;
+            border-bottom: none;
+            position: relative;
+            box-shadow: 
+                0 10px 20px rgba(0,0,0,0.5),
+                inset 0 1px 0 rgba(255,255,255,0.1),
+                -10px 0 15px -10px rgba(0,0,0,0.5) inset,
+                10px 0 15px -10px rgba(0,0,0,0.5) inset;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 10px;
+        }
+        
+        #machine-screen {
+            width: 80%;
+            height: 120px;
+            background-color: #000;
+            border: 3px solid #444;
+            border-radius: 5px;
+            position: relative;
+            margin-bottom: 20px;
+            overflow: hidden;
+            box-shadow: 0 0 15px rgba(139,69,19,0.3);
+        }
+        
+        #screen-content {
+            width: 100%;
+            height: 100%;
+            background: url('img/diggerSymbol.png');
+            background-size: cover;
+            background-position: center;
+            opacity: 0.7;
+            animation: screen-flicker 3s infinite alternate;
+        }
+        
+        @keyframes screen-flicker {
+            0% { opacity: 0.6; }
+            90% { opacity: 0.7; }
+            93% { opacity: 0.5; }
+            96% { opacity: 0.7; }
+            100% { opacity: 0.75; }
+        }
+        
+        #controls-panel {
+            width: 90%;
+            display: flex;
+            justify-content: space-around;
+            margin-top: 15px;
+        }
+        
+        .arcade-btn {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            border: 2px solid #222;
+            background: radial-gradient(circle at 40% 40%, #f00 0%, #900 100%);
+            box-shadow: 0 3px 5px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.3);
+        }
+        
+        .arcade-btn:nth-child(2) {
+            background: radial-gradient(circle at 40% 40%, #0f0 0%, #090 100%);
+        }
+        
+        .arcade-btn:nth-child(3) {
+            background: radial-gradient(circle at 40% 40%, #00f 0%, #009 100%);
+        }
+        
+        .joystick {
+            width: 40px;
+            height: 40px;
+            background-color: #222;
+            border-radius: 50%;
+            position: relative;
+            box-shadow: 0 3px 5px rgba(0,0,0,0.5);
+        }
+        
+        .joystick:after {
+            content: "";
+            position: absolute;
+            top: -20px;
+            left: 15px;
+            width: 10px;
+            height: 25px;
+            background-color: #333;
+            border-radius: 5px 5px 0 0;
+            box-shadow: 0 -1px 0 rgba(255,255,255,0.2);
+        }
+        
+        #machine-coin-slot {
+            width: 100%;
+            height: 50px;
+            background: linear-gradient(to bottom, #222 0%, #111 100%);
+            position: relative;
+            box-shadow: 
+                0 5px 10px rgba(0,0,0,0.5),
+                inset 0 1px 0 rgba(255,255,255,0.1);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        #coin-slot {
+            width: 60px;
+            height: 20px;
+            background: linear-gradient(to bottom, #111 0%, #000 100%);
+            border: 2px solid #444;
+            border-radius: 3px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.8);
+        }
+        
+        #coin-slot:before {
+            content: "";
+            position: absolute;
+            top: 50%;
+            left: 5px;
+            right: 5px;
+            height: 2px;
+            background-color: #000;
+            box-shadow: 0 0 5px rgba(255,255,255,0.2);
+        }
+        
+        #coin-light {
+            position: absolute;
+            top: 5px;
+            right: 10px;
+            width: 8px;
+            height: 8px;
+            background-color: #ffcc00;
+            border-radius: 50%;
+            animation: blink 1s infinite alternate;
+            box-shadow: 0 0 5px rgba(255, 204, 0, 0.8);
+        }
+        
+        @keyframes blink {
+            0% { opacity: 0.3; }
+            100% { opacity: 1; }
+        }
+        
+        #coin-counter {
+            position: absolute;
+            top: 10px;
+            left: 20px;
+            font-size: 1.2em;
+            color: #ffcc00;
+            font-family: 'Press Start 2P', cursive;
+            text-shadow: 0 0 5px rgba(255, 204, 0, 0.5);
+        }
+        
+        #machine-base {
+            width: 100%;
+            height: 50px;
+            background: linear-gradient(to bottom, #333 0%, #111 100%);
+            border: 5px solid #000;
+            border-top: none;
+            border-radius: 0 0 15px 15px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        #insert-coin-btn {
+            background: linear-gradient(to bottom, #ffcc00 0%, #cc9900 100%);
+            color: #000;
+            border: none;
+            border-radius: 50%;
+            width: 80px;
+            height: 80px;
+            font-family: 'Heebo', sans-serif;
+            font-weight: bold;
+            font-size: 0.8em;
+            cursor: pointer;
+            box-shadow: 
+                0 5px 0 #996600,
+                0 6px 10px rgba(0,0,0,0.5),
+                inset 0 1px 0 rgba(255,255,255,0.3);
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.1s, box-shadow 0.1s;
+            margin-right: 10px;
+        }
+        
+        #insert-coin-btn:after {
+            content: "";
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: rgba(255,255,255,0.1);
+            transform: rotate(45deg);
+            animation: shine 3s infinite;
+        }
+        
+        @keyframes shine {
+            0% { transform: translateX(-100%) rotate(45deg); }
+            20%, 100% { transform: translateX(100%) rotate(45deg); }
+        }
+        
+        #insert-coin-btn:active {
+            transform: translateY(5px);
+            box-shadow: 
+                0 0 0 #996600,
+                0 1px 5px rgba(0,0,0,0.5),
+                inset 0 1px 0 rgba(255,255,255,0.3);
+        }
+        
+        #timer-section {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background-color: rgba(0, 0, 0, 0.8);
+            border: 2px solid #ff0000;
+            padding: 10px;
+            border-radius: 5px;
+            display: none;
+            z-index: 100;
+            text-align: center;
+            box-shadow: 0 0 15px rgba(255, 0, 0, 0.3);
+        }
+        
+        #timer {
+            font-size: 1.5em;
+            color: #ff0000;
+            font-family: 'Press Start 2P', cursive;
+            text-shadow: 0 0 5px rgba(255, 0, 0, 0.5);
+        }
+        
+        #game-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: none;
+            direction: ltr;
+        }
+        
+        #dos {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        #game-over {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 1);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 20;
+            display: none;
+            opacity: 1;
+        }
+        
+        #game-over h2 {
+            font-size: 3em;
+            color: #ff0000;
+            margin-bottom: 30px;
+            text-shadow: 0 0 15px rgba(255, 0, 0, 0.5);
+            animation: pulse-red 2s infinite alternate;
+        }
+        
+        @keyframes pulse-red {
+            0% { text-shadow: 0 0 15px rgba(255, 0, 0, 0.5); }
+            100% { text-shadow: 0 0 25px rgba(255, 0, 0, 0.8); }
+        }
+        
+        #restart-btn {
+            background: linear-gradient(to bottom, #ff3333 0%, #cc0000 100%);
+            color: #fff;
+            border: none;
+            padding: 15px 30px;
+            font-family: 'Heebo', sans-serif;
+            font-weight: bold;
+            font-size: 1em;
+            cursor: pointer;
+            border-radius: 5px;
+            box-shadow: 
+                0 5px 0 #990000,
+                0 6px 10px rgba(0,0,0,0.5);
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+        
+        #restart-btn:after {
+            content: "";
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: rgba(255,255,255,0.1);
+            transform: rotate(45deg);
+            animation: shine 2s infinite;
+        }
+        
+        #restart-btn:active {
+            transform: translateY(5px);
+            box-shadow: 
+                0 0 0 #990000,
+                0 1px 5px rgba(0,0,0,0.5);
+        }
+        
+        .coin {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            background: radial-gradient(circle at 30% 30%, #ffdd33 0%, #ffaa00 100%);
+            border-radius: 50%;
+            z-index: 100;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            color: #cc7700;
+            font-size: 20px;
+            box-shadow: 
+                0 0 15px rgba(255, 204, 0, 0.8),
+                inset 0 1px 0 rgba(255, 255, 255, 0.5),
+                inset -2px -2px 5px rgba(0, 0, 0, 0.2);
+        }
+        
+        #game-instructions {
+            position: fixed;
+            direction: rtl;
+            top: 130px;
+            right: 20px;
+            background-color: rgba(0, 0, 0, 0.7);
+            border: 2px solid #cd853f;
+            padding: 15px;
+            border-radius: 10px;
+            width: 200px;
+            color: white;
+            font-size: 0.9em;
+            z-index: 90;
+            display: none;
+            box-shadow: 0 0 15px rgba(139, 69, 19, 0.3);
+        }
+        
+        #game-instructions h3 {
+            color: #ffd700;
+            margin-top: 0;
+            font-size: 1.2em;
+            text-align: center;
+            margin-bottom: 10px;
+            border-bottom: 1px solid rgba(255, 204, 0, 0.3);
+            padding-bottom: 5px;
+        }
+        
+        #game-instructions ul {
+            padding-right: 20px;
+            margin: 5px 0;
+        }
+        
+        #game-instructions li {
+            margin-bottom: 5px;
+        }
+        
+        @keyframes blink-message {
+            from { opacity: 0.7; }
+            to { opacity: 1; }
+        }
+        
+        #game-over p {
+            font-size: 1.5em;
+            color: #ffffff;
+            margin-bottom: 30px;
+            text-align: center;
+            max-width: 80%;
+            line-height: 1.5;
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <!-- Intro Screen -->
+    <div id="intro-screen">
+        <div id="title">דיגר</div>
+        
+        <div dir="rtl" class="info-box">
+            <h3>ההיסטוריה של המשחק</h3>
+            <p>דיגר (Digger) הוא משחק ארקייד קלאסי שפותח על ידי חברת Windmill Software בשנת 1983. המשחק היה אחד המשחקים הפופולריים של עידן ה-DOS המוקדם, ונחשב לקלאסיקה בתחום משחקי המחשב. לדיגר יש מקום מיוחד בלב שחקנים רבים והוא נחשב לאחד המשחקים המשפיעים של תקופתו.</p>
+        </div>
+        
+        <div class="info-box">
+            <h3>חוקי המשחק</h3>
+            <p>במשחק דיגר, השחקן שולט בכלי כרייה שמטרתו לאסוף יהלומים ושקי כסף תוך הימנעות מאויבים (נובאריום). ניתן לחפור מנהרות בשדה המשחק כדי לנוע בחופשיות. אם אויב מתקרב, ניתן לירות בו או להפיל עליו שק כסף על ידי חפירה מתחתיו. צבירת נקודות מתבצעת על ידי איסוף יהלומים, פגיעה באויבים ואיסוף פריטי בונוס.</p>
+        </div>
+        
+        <div id="controls">
+            <div class="control">
+                <span>תזוזה</span>
+                <span class="key">←→↑↓</span>
+            </div>
+            <div class="control">
+                <span>ירייה</span>
+                <span class="key">F1</span>
+            </div>
+        </div>
+        
+        <div id="arcade-coin-section">
+            <div id="arcade-machine">
+                <div id="machine-body">
+                    <div id="machine-screen">
+                        <div id="screen-content"></div>
+                    </div>
+                    <div id="controls-panel">
+                        <div class="arcade-btn"></div>
+                        <div class="arcade-btn"></div>
+                        <div class="arcade-btn"></div>
+                        <div class="joystick"></div>
+                    </div>
+                    <div id="machine-coin-slot">
+                        <div id="coin-slot">
+                            <div id="coin-light"></div>
+                        </div>
+                        <div id="coin-counter">0/5</div>
+                    </div>
+                </div>
+                <div id="machine-base"></div>
+            </div>
+            <button id="insert-coin-btn">הכנס מטבע</button>
+        </div>
+    </div>
+    
+    <!-- Timer Section -->
+    <div id="timer-section">
+        <div>זמן נותר</div>
+        <div id="timer">2:00</div>
+    </div>
+    
+    <!-- Game Container -->
+    <div id="game-container">
+        <div id="dos"></div>
+    </div>
+    
+    <!-- Game Over Screen -->
+    <div id="game-over">
+        <h2>נגמר הזמן</h2>
+        <p>זה הזמן לעבור למשחק אחר</p>
+        <button id="restart-btn">צאו למשחקיה</button>
+    </div>
+    
+    <!-- Start Message -->
+    <div id="start-message">לחצו על מקש האנטר להתחלה</div>
+    
+    <!-- Game Instructions -->
+    <div id="game-instructions">
+        <h3>הוראות משחק</h3>
+        <ul>
+            <li><strong>חצים:</strong> תזוזה בכל הכיוונים</li>
+            <li><strong>מקש F1:</strong> ירייה</li>
+            <li><strong>טיפ:</strong> הפל שקי כסף על האויבים!</li>
+        </ul>
+    </div>
+    
+    <script>
+        // Debug flag - set to true to see logs
+        const DEBUG = true;
+        
+        // Log function for debugging
+        function debugLog(...args) {
+            if (DEBUG) {
+                console.log("[DEBUG]", ...args);
+            }
+        }
+        
+        // Game variables
+        let coinsInserted = 0;
+        let gameTimer;
+        let timeLeft = 120; // 2 minutes in seconds
+        let dosInstance = null;
+        
+        // DOM Elements
+        const introScreen = document.getElementById('intro-screen');
+        const gameContainer = document.getElementById('game-container');
+        const timerSection = document.getElementById('timer-section');
+        const timerDisplay = document.getElementById('timer');
+        const coinCounter = document.getElementById('coin-counter');
+        const insertCoinBtn = document.getElementById('insert-coin-btn');
+        const gameOverScreen = document.getElementById('game-over');
+        const restartBtn = document.getElementById('restart-btn');
+        const coinLight = document.getElementById('coin-light');
+        
+        // Make sure DOM is fully loaded before proceeding
+        document.addEventListener('DOMContentLoaded', function() {
+            debugLog("DOM fully loaded, initializing game...");
+        });
+        
+        // Insert coin function
+        insertCoinBtn.addEventListener('click', function() {
+            if (coinsInserted < 5) {
+                coinsInserted++;
+                coinCounter.textContent = coinsInserted + "/5";
+                
+                // Increase coin light brightness
+                coinLight.style.opacity = 0.2 + (coinsInserted * 0.16);
+                coinLight.style.boxShadow = `0 0 ${5 + coinsInserted * 2}px rgba(255, 204, 0, 0.8)`;
+                
+                // Create coin animation
+                createCoinAnimation();
+                
+                // If 5 coins inserted, start the game
+                if (coinsInserted === 5) {
+                    // Blink the coin light rapidly
+                    let blinkCount = 0;
+                    const blinkInterval = setInterval(() => {
+                        coinLight.style.opacity = blinkCount % 2 === 0 ? 1 : 0.2;
+                        blinkCount++;
+                        if (blinkCount > 10) {
+                            clearInterval(blinkInterval);
+                            setTimeout(startGame, 500);
+                        }
+                    }, 100);
+                }
+            }
+        });
+        
+        // Create coin animation
+        function createCoinAnimation() {
+            const coin = document.createElement('div');
+            coin.className = 'coin';
+            coin.textContent = '₪';
+            
+            // Position coin near the button
+            const buttonRect = insertCoinBtn.getBoundingClientRect();
+            coin.style.left = (buttonRect.left + buttonRect.width / 2) + 'px';
+            coin.style.top = buttonRect.top + 'px';
+            
+            document.body.appendChild(coin);
+            
+            // Animate coin to slot
+            const slotRect = document.getElementById('coin-slot').getBoundingClientRect();
+            const coinDestX = slotRect.left + slotRect.width / 2;
+            const coinDestY = slotRect.top + slotRect.height / 2;
+            
+            // Play coin sound
+            try {
+                const coinSound = new Audio('audio/coins.mp3');
+                coinSound.play().catch(error => {
+                    console.error("Failed to play coin sound:", error);
+                });
+            } catch (e) {
+                debugLog("Error playing sound:", e);
+            }
+            
+            // Add coin spin effect during animation
+            let rotation = 0;
+            
+            // Animate coin
+            let startTime = null;
+            const animDuration = 800; // ms
+            
+            function animateCoin(timestamp) {
+                if (!startTime) startTime = timestamp;
+                const progress = (timestamp - startTime) / animDuration;
+                
+                if (progress < 1) {
+                    // Position
+                    coin.style.left = (buttonRect.left + buttonRect.width / 2) + (coinDestX - (buttonRect.left + buttonRect.width / 2)) * progress + 'px';
+                    coin.style.top = buttonRect.top + (coinDestY - buttonRect.top) * progress + 'px';
+                    
+                    // Add a slight arc
+                    const yOffset = Math.sin(progress * Math.PI) * -50; // Arc height
+                    coin.style.top = (buttonRect.top + (coinDestY - buttonRect.top) * progress) + yOffset + 'px';
+                    
+                    // Rotation
+                    rotation += 15;
+                    coin.style.transform = `rotate(${rotation}deg)`;
+                    
+                    // Scaling
+                    const scale = 1 - (progress * 0.5);
+                    coin.style.transform = `rotate(${rotation}deg) scale(${scale})`;
+                    
+                    requestAnimationFrame(animateCoin);
+                } else {
+                    // Remove coin when animation completes
+                    document.body.removeChild(coin);
+                }
+            }
+            
+            requestAnimationFrame(animateCoin);
+        }
+        
+        // Start game function
+        function startGame() {
+            introScreen.style.display = 'none';
+            gameContainer.style.display = 'block';
+            timerSection.style.display = 'block';
+            
+            // Show game instructions
+           // Show game instructions
+           document.getElementById('game-instructions').style.display = 'block';
+            
+            // Show start message
+            const startMessage = document.getElementById('start-message');
+            startMessage.style.display = 'block';
+            
+            // Hide start message after 8 seconds
+            setTimeout(function() {
+                startMessage.style.display = 'none';
+            }, 8000);
+            
+            // Start the timer
+            startTimer();
+            
+            // Initialize js-dos with a proper error handling
+            try {
+                debugLog("Initializing js-dos...");
+                
+                // Make sure the container is empty
+                const dosContainer = document.getElementById("dos");
+                dosContainer.innerHTML = '';
+                
+                // Create a loading message
+                const loadingMsg = document.createElement('div');
+                loadingMsg.innerHTML = '<p style="color: white; text-align: center; font-size: 1.5em; text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);">טוען את המשחק...</p>';
+                dosContainer.appendChild(loadingMsg);
+                
+                // Initialize js-dos properly
+                try {
+                    // Make sure Dos is available
+                    if (typeof Dos !== 'function') {
+                        throw new Error('JS-DOS not loaded properly');
+                    }
+                    
+                    // Call Dos constructor
+                    dosInstance = Dos(dosContainer, {
+                        url: "digger.jsdos",
+                        autoStart: true,
+                        kiosk: true
+                    });
+                    
+                    // Handle the promise if it returns one
+                    if (dosInstance && typeof dosInstance.then === 'function') {
+                        dosInstance.then(function(ci) {
+                            debugLog("JS-DOS loaded successfully");
+                        }).catch(function(error) {
+                            handleDosError(error);
+                        });
+                    } else {
+                        debugLog("JS-DOS initialized without returning a promise");
+                    }
+                } catch (error) {
+                    handleDosError(error);
+                }
+            } catch (e) {
+                handleDosError(e);
+            }
+        }
+        
+        // Handle DOS errors
+        function handleDosError(error) {
+            console.error("js-dos error:", error);
+            const dosContainer = document.getElementById("dos");
+            
+            // Create error message
+            dosContainer.innerHTML = `
+                <div style="color: white; text-align: center; padding: 20px;">
+                    <p>שגיאה בטעינת המשחק: ${error.message || 'שגיאה לא ידועה'}</p>
+                    <button id="retry-btn" style="padding: 10px 20px; background-color: #ff0000; color: white; border: none; border-radius: 5px; cursor: pointer; margin-top: 20px;">נסה שוב</button>
+                </div>
+            `;
+            
+            // Add retry handler
+            document.getElementById("retry-btn").addEventListener('click', function() {
+                window.location.reload();
+            });
+        }
+        
+        // Timer function
+        function startTimer() {
+            updateTimerDisplay();
+            
+            gameTimer = setInterval(function() {
+                timeLeft--;
+                updateTimerDisplay();
+                
+                // Add flashing effect when time is running low
+                if (timeLeft <= 30) {
+                    timerSection.style.animation = "pulse-red 0.8s infinite alternate";
+                }
+                
+                if (timeLeft <= 0) {
+                    clearInterval(gameTimer);
+                    endGame();
+                }
+            }, 1000);
+        }
+        
+        // Update timer display
+        function updateTimerDisplay() {
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+            timerDisplay.textContent = minutes + ':' + (seconds < 10 ? '0' : '') + seconds;
+        }
+        
+        // End game function
+        function endGame() {
+            gameOverScreen.style.display = 'flex';
+            gameOverScreen.style.opacity = '1'; // הוספת אופסיטי מלא
+            gameOverScreen.style.backgroundColor = 'rgba(0, 0, 0, 1)'; // רקע שחור מלא ללא שקיפות
+            
+            // Hide game instructions
+            document.getElementById('game-instructions').style.display = 'none';
+            
+            // Try to pause or close the DOS instance if it exists
+            if (dosInstance && typeof dosInstance.exit === 'function') {
+                try {
+                    dosInstance.exit();
+                } catch (e) {
+                    debugLog("Error when exiting DOS:", e);
+                }
+            }
+            
+            // שליחת הודעה לחלון האב שהזמן נגמר
+            window.parent.postMessage({ action: 'gameOver', game: 'digger', message: 'זה הזמן לעבור למשחק אחר' }, '*');
+        }
+        
+        // Restart game
+        restartBtn.addEventListener('click', function() {
+            // שליחת הודעה לחלון האב כדי לסגור את ה-IFRAME
+            window.parent.postMessage({ action: 'closeIframe', game: 'digger' }, '*');
+            
+            // במקרה שהמשחק לא מוצג ב-IFRAME, נחזור למסך הפתיחה
+            // Reset variables
+            coinsInserted = 0;
+            timeLeft = 120;
+            coinCounter.textContent = "0/5";
+            
+            // Reset coin light
+            coinLight.style.opacity = 0.3;
+            coinLight.style.boxShadow = "0 0 5px rgba(255, 204, 0, 0.8)";
+            
+            // Reset timer flashing
+            timerSection.style.animation = "";
+            
+            // Reset screens
+            gameOverScreen.style.display = 'none';
+            gameContainer.style.display = 'none';
+            timerSection.style.display = 'none';
+            introScreen.style.display = 'flex';
+            
+            // Clear the DOS container to prevent issues on restart
+            document.getElementById("dos").innerHTML = '';
+            
+            // Reset DOS instance
+            dosInstance = null;
+            
+            debugLog("Game restarted, DOM cleaned");
+        });
+        
+        // Add global error handler
+        window.addEventListener('error', function(event) {
+            debugLog("Global error caught:", event.message);
+            
+            // Check if error is related to js-dos
+            if (event.message.includes('js-dos') || event.message.includes('Dos') || event.message.includes('catch')) {
+                handleDosError({message: event.message});
+                event.preventDefault(); // Prevent default error handling
+            }
+        });
+        
+        // האזנה להודעות מהחלון האב
+        window.addEventListener('message', function(event) {
+            // לצרכי דיבוג
+            console.log('התקבלה הודעה מהחלון האב:', event.data);
+            
+            // טיפול בסוגי הודעות שונים
+            if (event.data.action === 'pause') {
+                // לדוגמה: להשהות את המשחק
+                if (gameTimer) {
+                    clearInterval(gameTimer);
+                }
+            }
+        });
+    </script>
+</body>
+</html>
